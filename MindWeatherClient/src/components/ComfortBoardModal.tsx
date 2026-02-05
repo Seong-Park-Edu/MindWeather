@@ -65,31 +65,32 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative w-full max-w-xl bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl flex flex-col max-h-[85vh]"
+                className="relative w-full max-w-xl bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
             >
-                {/* Close Button */}
+                {/* Close Button - positioned in the corner with margin */}
                 <button
                     onClick={onClose}
-                    className="absolute top-6 right-6 z-10 p-2 text-white/50 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full"
+                    className="absolute top-8 right-8 z-10 p-2 text-white/50 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full"
                 >
                     ✕
                 </button>
 
-                <div className="flex justify-between items-center mb-8 shrink-0 pr-10">
-                    <h2 className="text-2xl font-bold flex items-center gap-2">
-                        <span>💌</span>
-                        <span>익명 위로 게시판</span>
+                {/* Header */}
+                <div className="flex justify-between items-center mb-10 shrink-0 pr-12">
+                    <h2 className="text-3xl font-bold flex items-center gap-3">
+                        <span className="text-4xl">💌</span>
+                        <span className="bg-gradient-to-r from-pink-200 to-rose-200 bg-clip-text text-transparent">익명 위로</span>
                     </h2>
-                    <div className="flex bg-black/20 rounded-lg p-1">
+                    <div className="flex bg-black/40 rounded-xl p-1.5 gap-1">
                         <button
                             onClick={() => setSortBy('latest')}
-                            className={`px-3 py-1 text-xs rounded-md transition-colors ${sortBy === 'latest' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white'}`}
+                            className={`px-4 py-2 text-sm rounded-lg transition-all font-medium ${sortBy === 'latest' ? 'bg-white/20 text-white shadow-sm' : 'text-white/40 hover:text-white/80'}`}
                         >
                             최신순
                         </button>
                         <button
                             onClick={() => setSortBy('top')}
-                            className={`px-3 py-1 text-xs rounded-md transition-colors ${sortBy === 'top' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white'}`}
+                            className={`px-4 py-2 text-sm rounded-lg transition-all font-medium ${sortBy === 'top' ? 'bg-white/20 text-white shadow-sm' : 'text-white/40 hover:text-white/80'}`}
                         >
                             인기순
                         </button>
@@ -97,35 +98,35 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 </div>
 
                 {/* Post Form */}
-                <div className="mb-6 shrink-0 bg-white/5 p-4 rounded-xl border border-white/10">
+                <div className="mb-8 shrink-0 bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col gap-4">
                     <textarea
                         value={newContent}
                         onChange={(e) => setNewContent(e.target.value)}
                         placeholder="모두에게 따뜻한 한마디를 나누어 주세요. (최대 200자)"
-                        className="w-full bg-transparent border-none focus:ring-0 text-sm resize-none h-20 placeholder:text-white/20"
+                        className="w-full bg-transparent border-none focus:ring-0 text-base resize-none h-24 placeholder:text-white/20 leading-relaxed"
                         maxLength={200}
                     />
-                    <div className="flex justify-end mt-2">
+                    <div className="flex justify-end pt-2 border-t border-white/5">
                         <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
                             onClick={handlePost}
                             disabled={!newContent.trim() || isSubmitting}
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-2 rounded-lg text-sm font-bold shadow-lg disabled:opacity-50"
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-2.5 rounded-xl text-md font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-indigo-500/20"
                         >
-                            {isSubmitting ? '전송 중...' : '나누기'}
+                            {isSubmitting ? '전송 중...' : '따뜻한 마음 나누기 🕊️'}
                         </motion.button>
                     </div>
                 </div>
 
                 {/* Messages List */}
-                <div className="flex-1 overflow-y-auto space-y-5 min-h-0 pr-2 custom-scrollbar p-2">
+                <div className="flex-1 overflow-y-auto space-y-6 min-h-0 pr-2 custom-scrollbar p-1">
                     {messages.map((m) => (
                         <motion.div
                             key={m.id}
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="bg-white/5 p-5 rounded-2xl border border-white/5 flex flex-col gap-4 group hover:bg-white/10 transition-colors"
+                            className="bg-white/5 p-6 rounded-2xl border border-white/5 flex flex-col gap-4 group hover:bg-white/10 transition-colors shadow-sm"
                         >
                             <p className="text-base leading-relaxed text-white/95 font-medium">{m.content}</p>
                             <div className="flex justify-between items-center">
