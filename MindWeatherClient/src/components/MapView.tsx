@@ -206,6 +206,12 @@ export function MapView() {
                 }
             });
 
+            if (dominantEmotion === EmotionType.Calm && maxCount === -1) {
+                console.log('No dominant found for', key);
+            }
+
+            console.log(`[Cluster Debug] Region: ${key}, Total: ${clusterEmotions.length}, Dominant: ${dominantEmotion} (${maxCount})`);
+
             newClusters.push({
                 region: key,
                 displayName,
