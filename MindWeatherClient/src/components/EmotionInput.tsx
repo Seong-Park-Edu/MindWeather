@@ -79,9 +79,6 @@ export function EmotionInput({ onSuccess }: EmotionInputProps) {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
             className="glass p-8 rounded-2xl w-[95%] max-w-lg mx-auto"
         >
             <h2 className="text-2xl font-bold mb-8 text-center bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
