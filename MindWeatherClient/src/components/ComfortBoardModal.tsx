@@ -67,7 +67,15 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
                 className="relative w-full max-w-xl bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl flex flex-col max-h-[85vh]"
             >
-                <div className="flex justify-between items-center mb-6 shrink-0">
+                {/* Close Button */}
+                <button
+                    onClick={onClose}
+                    className="absolute top-6 right-6 z-10 p-2 text-white/50 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full"
+                >
+                    ✕
+                </button>
+
+                <div className="flex justify-between items-center mb-8 shrink-0 pr-10">
                     <h2 className="text-2xl font-bold flex items-center gap-2">
                         <span>💌</span>
                         <span>익명 위로 게시판</span>
@@ -87,13 +95,6 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                         </button>
                     </div>
                 </div>
-
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-white/50 hover:text-white"
-                >
-                    ✕
-                </button>
 
                 {/* Post Form */}
                 <div className="mb-6 shrink-0 bg-white/5 p-4 rounded-xl border border-white/10">

@@ -111,22 +111,22 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
                 className="relative w-full max-w-md bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
             >
-                {/* Header */}
-                <div className="flex justify-between items-center mb-8 shrink-0">
+                {/* Close Button */}
+                <button
+                    onClick={onClose}
+                    className="absolute top-6 right-6 z-10 p-2 text-white/30 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full"
+                >
+                    ✕
+                </button>
+
+                {/* Header - Centered Navigation */}
+                <div className="flex justify-center items-center gap-6 mb-8 shrink-0 relative">
                     <button onClick={prevMonth} className="text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">◀</button>
                     <h2 className="text-xl font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
                         {year}년 {month}월
                     </h2>
                     <button onClick={nextMonth} className="text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">▶</button>
                 </div>
-
-                {/* Close Button */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-6 right-6 text-white/30 hover:text-white transition-colors"
-                >
-                    ✕
-                </button>
 
                 {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-2 text-center mb-8 shrink-0">
