@@ -99,21 +99,21 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 </div>
 
                 {/* Post Form */}
-                <div className="mb-8 shrink-0 bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col gap-4">
+                <div className="mb-12 shrink-0 bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col gap-6 shadow-inner">
                     <textarea
                         value={newContent}
                         onChange={(e) => setNewContent(e.target.value)}
                         placeholder="모두에게 따뜻한 한마디를 나누어 주세요. (최대 200자)"
-                        className="w-full bg-transparent border-none focus:ring-0 text-base resize-none h-24 placeholder:text-white/20 leading-relaxed"
+                        className="w-full bg-transparent border-none focus:ring-0 text-base resize-none h-24 placeholder:text-white/20 leading-relaxed p-2"
                         maxLength={200}
                     />
-                    <div className="flex justify-end pt-2 border-t border-white/5">
+                    <div className="flex justify-end pt-4 border-t border-white/5">
                         <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={handlePost}
                             disabled={!newContent.trim() || isSubmitting}
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-2.5 rounded-xl text-md font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-indigo-500/20"
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 px-8 py-3 rounded-xl text-md font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-indigo-500/20"
                         >
                             {isSubmitting ? '전송 중...' : '따뜻한 마음 나누기 🕊️'}
                         </motion.button>
@@ -121,22 +121,22 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 </div>
 
                 {/* Messages List */}
-                <div className="flex-1 overflow-y-auto space-y-6 min-h-0 pr-2 custom-scrollbar p-1">
+                <div className="flex-1 overflow-y-auto space-y-6 min-h-0 custom-scrollbar p-4 -mx-4">
                     {messages.map((m) => (
                         <motion.div
                             key={m.id}
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="bg-white/5 p-6 rounded-2xl border border-white/5 flex flex-col gap-4 group hover:bg-white/10 transition-colors shadow-sm"
+                            className="bg-white/5 p-6 rounded-2xl border border-white/5 flex flex-col gap-4 group hover:bg-white/10 transition-colors shadow-sm mx-1"
                         >
-                            <p className="text-base leading-relaxed text-white/95 font-medium">{m.content}</p>
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs text-white/40 font-mono">
+                            <p className="text-base leading-relaxed text-white/95 font-medium whitespace-pre-wrap break-words">{m.content}</p>
+                            <div className="flex justify-between items-center mt-2">
+                                <span className="text-xs text-white/40 font-mono tracking-wide">
                                     {new Date(m.createdAt).toLocaleString()}
                                 </span>
                                 <button
                                     onClick={() => handleLike(m.id)}
-                                    className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/20 hover:bg-pink-500/20 hover:text-pink-400 transition-all text-white/50"
+                                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/20 hover:bg-pink-500/20 hover:text-pink-400 transition-all text-white/50"
                                 >
                                     <span className="text-sm">❤️</span>
                                     <span className="text-xs font-bold">{m.likeCount}</span>
