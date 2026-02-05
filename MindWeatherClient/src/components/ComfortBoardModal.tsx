@@ -65,7 +65,7 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative w-[95%] max-w-xl bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl flex flex-col gap-8 max-h-[85vh] overflow-hidden"
+                className="relative w-[95%] max-w-xl bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl pt-10 px-10 pb-0 shadow-2xl flex flex-col gap-8 max-h-[85vh] overflow-hidden"
             >
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-4">
@@ -121,7 +121,7 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 </div>
 
                 {/* Messages List */}
-                <div className="flex-1 overflow-y-auto space-y-6 min-h-0 custom-scrollbar p-4 -mx-4 pb-10">
+                <div className="flex-1 overflow-y-auto space-y-6 min-h-0 custom-scrollbar p-4 -mx-4 pb-12">
                     {messages.map((m) => (
                         <motion.div
                             key={m.id}
