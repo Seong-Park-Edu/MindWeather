@@ -65,10 +65,10 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative w-[95%] max-w-xl bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+                className="relative w-[95%] max-w-xl bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl flex flex-col gap-8 max-h-[85vh] overflow-hidden"
             >
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 shrink-0 gap-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-4">
                     <h2 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
                         <span className="text-3xl sm:text-4xl">💌</span>
                         <span className="bg-gradient-to-r from-pink-200 to-rose-200 bg-clip-text text-transparent">익명 위로 게시판</span>
@@ -99,12 +99,12 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 </div>
 
                 {/* Post Form */}
-                <div className="mb-12 shrink-0 bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col gap-6 shadow-inner">
+                <div className="shrink-0 bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col gap-6 shadow-inner">
                     <textarea
                         value={newContent}
                         onChange={(e) => setNewContent(e.target.value)}
                         placeholder="모두에게 따뜻한 한마디를 나누어 주세요. (최대 200자)"
-                        className="w-full bg-transparent border-none focus:ring-0 text-base resize-none h-24 placeholder:text-white/20 leading-relaxed p-2"
+                        className="w-full bg-transparent border-none focus:ring-0 text-base resize-none h-24 placeholder:text-white/20 leading-relaxed p-4"
                         maxLength={200}
                     />
                     <div className="flex justify-end pt-4 border-t border-white/5">
