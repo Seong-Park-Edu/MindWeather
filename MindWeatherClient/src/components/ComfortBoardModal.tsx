@@ -121,7 +121,7 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 </div>
 
                 {/* Messages List */}
-                <div className="flex-1 overflow-y-auto space-y-6 min-h-0 custom-scrollbar p-4 -mx-4">
+                <div className="flex-1 overflow-y-auto space-y-6 min-h-0 custom-scrollbar p-4 -mx-4 pb-10">
                     {messages.map((m) => (
                         <motion.div
                             key={m.id}
