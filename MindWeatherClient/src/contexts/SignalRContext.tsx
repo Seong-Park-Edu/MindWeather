@@ -22,8 +22,12 @@ export const SignalRProvider = ({ children }: { children: ReactNode }) => {
     const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5015/api';
+        // Remove '/api' from the end and append '/emotionHub'
+        const hubUrl = apiUrl.replace(/\/api$/, '') + '/emotionHub';
+
         const newConnection = new signalR.HubConnectionBuilder()
-            .withUrl("http://localhost:5000/emotionHub") // Adjust port if needed
+            .withUrl(hubUrl)
             .withAutomaticReconnect()
             .build();
 
