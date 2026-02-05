@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.git/
+**/.gitignore
+**/appsettings.Development.json
+**/Migrations/
+MindWeatherClient/
+dist/
+node_modules/
