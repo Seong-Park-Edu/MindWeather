@@ -18,10 +18,11 @@ builder.Services.AddCors(options =>
             policy
                 .WithOrigins(
                     "http://localhost:5173",
-                    "http://localhost:3000", // 명시적 Origin 필요 (와일드카드 불가)
-                    "http://172.30.1.56:5173", // Local Network
-                    "capacitor://localhost", // iOS
-                    "http://localhost" // Android
+                    "http://localhost:3000",
+                    "http://172.30.1.56:5173",
+                    "capacitor://localhost",
+                    "http://localhost",
+                    "https://mind-weather-theta.vercel.app" // Vercel Cloud
                 )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
@@ -40,12 +41,14 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// 4. 개발 환경일 때 Swagger 화면 켜기
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// 4. 디버깅을 위해 항상 개발자 페이지/Swagger 켜기 (배포 후 에러 확인용)
+// if (app.Environment.IsDevelopment())
+// {
+app.UseDeveloperExceptionPage();
+app.UseSwagger();
+app.UseSwaggerUI();
+
+// }
 
 app.UseHttpsRedirection();
 
