@@ -65,7 +65,7 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative w-full max-w-xl bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 shadow-2xl flex flex-col max-h-[85vh]"
+                className="relative w-full max-w-xl bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl flex flex-col max-h-[85vh]"
             >
                 <div className="flex justify-between items-center mb-6 shrink-0">
                     <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -118,22 +118,22 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 </div>
 
                 {/* Messages List */}
-                <div className="flex-1 overflow-y-auto space-y-4 min-h-0 pr-2 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto space-y-5 min-h-0 pr-2 custom-scrollbar p-2">
                     {messages.map((m) => (
                         <motion.div
                             key={m.id}
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col gap-3 group"
+                            className="bg-white/5 p-5 rounded-2xl border border-white/5 flex flex-col gap-4 group hover:bg-white/10 transition-colors"
                         >
-                            <p className="text-sm leading-relaxed text-white/90">{m.content}</p>
+                            <p className="text-base leading-relaxed text-white/95 font-medium">{m.content}</p>
                             <div className="flex justify-between items-center">
-                                <span className="text-[10px] text-white/30">
+                                <span className="text-xs text-white/40 font-mono">
                                     {new Date(m.createdAt).toLocaleString()}
                                 </span>
                                 <button
                                     onClick={() => handleLike(m.id)}
-                                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 hover:bg-pink-500/20 hover:text-pink-400 transition-all text-white/40"
+                                    className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/20 hover:bg-pink-500/20 hover:text-pink-400 transition-all text-white/50"
                                 >
                                     <span className="text-sm">❤️</span>
                                     <span className="text-xs font-bold">{m.likeCount}</span>
@@ -142,10 +142,10 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                         </motion.div>
                     ))}
                     {messages.length === 0 && (
-                        <div className="text-center py-20 text-white/20 flex flex-col items-center">
-                            <span className="text-4xl mb-4">🍃</span>
-                            아직 게시된 위로가 없습니다. <br />
-                            첫 번째 위로를 전해보세요!
+                        <div className="text-center py-24 text-white/20 flex flex-col items-center">
+                            <span className="text-5xl mb-6 opacity-50">🍃</span>
+                            <p className="text-lg">아직 게시된 위로가 없습니다.</p>
+                            <p className="text-sm mt-2">첫 번째 위로를 전해보세요!</p>
                         </div>
                     )}
                 </div>
