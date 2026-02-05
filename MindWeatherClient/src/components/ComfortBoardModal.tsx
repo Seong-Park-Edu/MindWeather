@@ -67,32 +67,33 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
                 className="relative w-[95%] max-w-xl bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
             >
-                {/* Close Button - positioned in the corner with margin */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-8 right-8 z-10 p-2 text-white/50 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full"
-                >
-                    ✕
-                </button>
-
                 {/* Header */}
-                <div className="flex justify-between items-center mb-10 shrink-0 pr-12">
-                    <h2 className="text-3xl font-bold flex items-center gap-3">
-                        <span className="text-4xl">💌</span>
-                        <span className="bg-gradient-to-r from-pink-200 to-rose-200 bg-clip-text text-transparent">익명 위로</span>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 shrink-0 gap-4">
+                    <h2 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
+                        <span className="text-3xl sm:text-4xl">💌</span>
+                        <span className="bg-gradient-to-r from-pink-200 to-rose-200 bg-clip-text text-transparent">익명 위로 게시판</span>
                     </h2>
-                    <div className="flex bg-black/40 rounded-xl p-1.5 gap-1">
+
+                    <div className="flex items-center gap-3 self-end sm:self-auto">
+                        <div className="flex bg-black/40 rounded-xl p-1.5 gap-1">
+                            <button
+                                onClick={() => setSortBy('latest')}
+                                className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-all font-medium ${sortBy === 'latest' ? 'bg-white/20 text-white shadow-sm' : 'text-white/40 hover:text-white/80'}`}
+                            >
+                                최신순
+                            </button>
+                            <button
+                                onClick={() => setSortBy('top')}
+                                className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-all font-medium ${sortBy === 'top' ? 'bg-white/20 text-white shadow-sm' : 'text-white/40 hover:text-white/80'}`}
+                            >
+                                인기순
+                            </button>
+                        </div>
                         <button
-                            onClick={() => setSortBy('latest')}
-                            className={`px-4 py-2 text-sm rounded-lg transition-all font-medium ${sortBy === 'latest' ? 'bg-white/20 text-white shadow-sm' : 'text-white/40 hover:text-white/80'}`}
+                            onClick={onClose}
+                            className="p-2 text-white/50 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full"
                         >
-                            최신순
-                        </button>
-                        <button
-                            onClick={() => setSortBy('top')}
-                            className={`px-4 py-2 text-sm rounded-lg transition-all font-medium ${sortBy === 'top' ? 'bg-white/20 text-white shadow-sm' : 'text-white/40 hover:text-white/80'}`}
-                        >
-                            인기순
+                            ✕
                         </button>
                     </div>
                 </div>
