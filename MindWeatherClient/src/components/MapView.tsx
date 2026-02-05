@@ -188,7 +188,7 @@ export function MapView() {
                 clusterTotalIntensity += e.intensity;
             });
 
-            let dominantEmotion: EmotionType = EmotionType.Calm;
+            let dominantEmotion: EmotionType | null = null;
             let maxCount = -1;
             let maxIntensity = -1;
 
@@ -199,12 +199,16 @@ export function MapView() {
                     maxIntensity = stat.totalIntensity;
                     dominantEmotion = emotion;
                 } else if (stat.count === maxCount) {
+                    // Tie-breaking: choose the one with higher total intensity
                     if (stat.totalIntensity > maxIntensity) {
                         maxIntensity = stat.totalIntensity;
                         dominantEmotion = emotion;
                     }
                 }
             });
+
+            // Fallback if map is empty (rare)
+            if (dominantEmotion === null) dominantEmotion = EmotionType.Calm;
 
             if (dominantEmotion === EmotionType.Calm && maxCount === -1) {
                 console.log('No dominant found for', key);
