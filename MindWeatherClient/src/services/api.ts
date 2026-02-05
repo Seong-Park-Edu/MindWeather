@@ -1,0 +1,235 @@
+import type {
+    CreateEmotionRequest,
+    SendMessageRequest,
+    EmotionResponse,
+    MessageResponse,
+    StatsResponse,
+    ComfortStatsResponse,
+} from '../types/emotion';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5015/api';
+
+// Notifications API
+export interface NotificationCount {
+    newMessages: number;
+    newThanks: number;
+    total: number;
+}
+
+export async function getNotificationCount(userId: string, since?: string): Promise<NotificationCount> {
+    try {
+        const params = since ? `?since=${encodeURIComponent(since)}` : '';
+        const response = await fetch(`${API_BASE_URL}/comfort-messages/notifications/${userId}${params}`);
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch notification count');
+        }
+
+        return response.json();
+    } catch {
+        return { newMessages: 0, newThanks: 0, total: 0 };
+    }
+}
+
+// Emotions API
+export async function postEmotion(request: CreateEmotionRequest): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/emotions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to post emotion');
+    }
+
+    return response.json();
+}
+
+export async function getEmotionsForMap(): Promise<EmotionResponse[]> {
+    const response = await fetch(`${API_BASE_URL}/emotions/map`);
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch emotions');
+    }
+
+    return response.json();
+}
+
+export async function getEmotionStats(): Promise<StatsResponse> {
+    const response = await fetch(`${API_BASE_URL}/emotions/stats`);
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch stats');
+    }
+
+    return response.json();
+}
+
+// Comfort Messages API
+export async function sendComfortMessage(request: SendMessageRequest): Promise<{ message: string; id: number }> {
+    const response = await fetch(`${API_BASE_URL}/comfort-messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to send message');
+    }
+
+    return response.json();
+}
+
+export async function getReceivedMessages(userId: string): Promise<MessageResponse[]> {
+    const response = await fetch(`${API_BASE_URL}/comfort-messages/received/${userId}`);
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch messages');
+    }
+
+    return response.json();
+}
+
+export async function getSentMessages(userId: string): Promise<MessageResponse[]> {
+    const response = await fetch(`${API_BASE_URL}/comfort-messages/sent/${userId}`);
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch sent messages');
+    }
+
+    return response.json();
+}
+
+export async function thankMessage(messageId: number, userId: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/comfort-messages/${messageId}/thank?userId=${userId}`, {
+        method: 'PUT',
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to thank message');
+    }
+
+    return response.json();
+}
+
+export async function getComfortStats(): Promise<ComfortStatsResponse> {
+    const response = await fetch(`${API_BASE_URL}/comfort-messages/stats`);
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch comfort stats');
+    }
+
+    return response.json();
+}
+
+// Admin API
+export interface AdminEmotionStat {
+    emotion: number;
+    count: number;
+    totalLogs: number;
+}
+
+export interface BroadcastResponse {
+    message: string;
+    count: number;
+}
+
+export interface UserProfile {
+    userId: string;
+    isAdmin: boolean;
+    isBanned: boolean;
+}
+
+export async function getUserProfile(token: string): Promise<UserProfile> {
+    const response = await fetch(`${API_BASE_URL}/users/me`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch user profile');
+    }
+
+    return response.json();
+}
+
+export async function getAdminStats(token: string): Promise<AdminEmotionStat[]> {
+    const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch admin stats');
+    }
+
+    return response.json();
+}
+
+export async function broadcastComfort(
+    targetEmotion: number,
+    content: string,
+    token: string
+): Promise<BroadcastResponse> {
+    const response = await fetch(`${API_BASE_URL}/admin/broadcast`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ targetEmotion, content }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to broadcast message');
+    }
+
+    return response.json();
+}
+
+// 내 감정 기록 가져오기
+export async function getMyEmotions(userId: string, year: number, month: number): Promise<EmotionResponse[]> {
+    const response = await fetch(`${API_BASE_URL}/emotions/my?userId=${userId}&year=${year}&month=${month}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch my emotions');
+    }
+    return response.json();
+}
+
+// Public Messages (Community Board)
+export interface PublicMessage {
+    id: number;
+    userId: string;
+    content: string;
+    likeCount: number;
+    createdAt: string;
+}
+
+export async function postPublicMessage(userId: string, content: string): Promise<{ id: number }> {
+    const response = await fetch(`${API_BASE_URL}/public-messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, content }),
+    });
+    if (!response.ok) throw new Error('Failed to post public message');
+    return response.json();
+}
+
+export async function getPublicMessages(sort: 'latest' | 'top' = 'latest'): Promise<PublicMessage[]> {
+    const response = await fetch(`${API_BASE_URL}/public-messages?sort=${sort}`);
+    if (!response.ok) throw new Error('Failed to fetch public messages');
+    return response.json();
+}
+
+export async function likePublicMessage(id: number): Promise<{ likeCount: number }> {
+    const response = await fetch(`${API_BASE_URL}/public-messages/${id}/like`, {
+        method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to like message');
+    return response.json();
+}

@@ -1,0 +1,11 @@
+.vs/
+.vscode/
+bin/
+obj/
+node_modules/
+dist/
+build/
+*.user
+*.lock.json
+.DS_Store
+.env
