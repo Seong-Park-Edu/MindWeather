@@ -65,7 +65,7 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative w-full max-w-xl bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+                className="relative w-[95%] max-w-xl bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-10 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
             >
                 {/* Close Button - positioned in the corner with margin */}
                 <button
