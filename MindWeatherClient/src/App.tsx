@@ -51,7 +51,7 @@ function AppContent() {
           <Header />
 
           <main className="relative w-full h-full">
-            <MapView key={refreshTrigger} />
+            <MapView refreshTrigger={refreshTrigger} />
           </main>
 
           {/* Floating Action Buttons */}

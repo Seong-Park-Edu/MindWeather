@@ -51,19 +51,16 @@ interface RegionCluster {
 
 import { useSignalR } from '../contexts/SignalRContext';
 
-export function MapView() {
+export function MapView({ refreshTrigger = 0 }: { refreshTrigger?: number }) {
     const { latestEmotion } = useSignalR();
     const [emotions, setEmotions] = useState<EmotionResponse[]>([]);
-    const [clusters, setClusters] = useState<RegionCluster[]>([]);
     const [selectedCluster, setSelectedCluster] = useState<RegionCluster | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [currentZoom, setCurrentZoom] = useState(1);
+    // const [currentZoom, setCurrentZoom] = useState(1); // Redundant, use mapPosition.zoom
     const [mapPosition, setMapPosition] = useState({ zoom: 1, center: [127.8, 36.0] as [number, number] });
 
-    // Sync currentZoom with mapPosition.zoom for other logic
-    useEffect(() => {
-        setCurrentZoom(mapPosition.zoom);
-    }, [mapPosition.zoom]);
+    // Derived state for easier access
+    const currentZoom = mapPosition.zoom;
 
     // Handle Real-time updates
     useEffect(() => {
@@ -112,11 +109,11 @@ export function MapView() {
         // Keep polling as backup, but maybe less frequent?
         const interval = setInterval(loadEmotions, 30000);
         return () => clearInterval(interval);
-    }, []);
+    }, [refreshTrigger]);
 
     // Recalculate clusters when emotions or zoom level changes
-    useEffect(() => {
-        if (emotions.length === 0) return;
+    const clusters = useMemo(() => {
+        if (emotions.length === 0) return [];
 
         // Group by current clustering level
         const clusterMap = new Map<string, { emotions: EmotionResponse[], parsed: ParsedAddress[] }>();
@@ -210,12 +207,6 @@ export function MapView() {
             // Fallback if map is empty (rare)
             if (dominantEmotion === null) dominantEmotion = EmotionType.Calm;
 
-            if (dominantEmotion === EmotionType.Calm && maxCount === -1) {
-                console.log('No dominant found for', key);
-            }
-
-            console.log(`[Cluster Debug] Region: ${key}, Total: ${clusterEmotions.length}, Dominant: ${dominantEmotion} (${maxCount})`);
-
             newClusters.push({
                 region: key,
                 displayName,
@@ -227,7 +218,7 @@ export function MapView() {
             });
         });
 
-        setClusters(newClusters);
+        return newClusters;
     }, [emotions, clusterLevel, parseAddress]);
 
     // Get zoom level label
