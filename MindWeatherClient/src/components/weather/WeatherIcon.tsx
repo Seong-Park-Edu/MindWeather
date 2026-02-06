@@ -12,7 +12,7 @@ import { AnimatedSnow } from './AnimatedSnow';
 import { AnimatedAbyss } from './AnimatedAbyss';
 import { AnimatedBreeze } from './AnimatedBreeze';
 import { AnimatedRainbow } from './AnimatedRainbow';
-import { AnimatedStones } from './AnimatedStones';
+import { AnimatedSnail } from './AnimatedSnail';
 
 interface WeatherIconProps {
     emotion: EmotionType;
@@ -57,8 +57,8 @@ export function WeatherIcon({ emotion, intensity, region, size: propSize, onClic
                 return <AnimatedBreeze {...props} />;
             case 'Rainbow':
                 return <AnimatedRainbow {...props} />;
-            case 'Stones':
-                return <AnimatedStones {...props} />;
+            case 'Snail':
+                return <AnimatedSnail {...props} />;
             default:
                 return <AnimatedCloud {...props} />;
         }

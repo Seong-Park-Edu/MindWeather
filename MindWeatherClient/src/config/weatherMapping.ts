@@ -1,6 +1,6 @@
 import { EmotionType } from '../types/emotion';
 
-export type WeatherType = 'Sun' | 'Cloud' | 'Storm' | 'Tornado' | 'Fog' | 'PartlyCloudy' | 'Sparkles' | 'Dust' | 'Snow' | 'Abyss' | 'Rain' | 'Breeze' | 'Rainbow' | 'Stones';
+export type WeatherType = 'Sun' | 'Cloud' | 'Storm' | 'Tornado' | 'Fog' | 'PartlyCloudy' | 'Sparkles' | 'Dust' | 'Snow' | 'Abyss' | 'Rain' | 'Breeze' | 'Rainbow' | 'Snail';
 
 export interface WeatherConfig {
     icon: WeatherType;
@@ -49,13 +49,13 @@ export const WEATHER_CONFIG: Record<EmotionType, WeatherConfig> = {
         description: '회오리',
     },
 
-    // Fatigue (피로) -> Stacked stones representing heaviness
+    // Fatigue (피로) -> Slow moving snail
     [EmotionType.Fatigue]: {
-        icon: 'Stones',
+        icon: 'Snail',
         color: '#94A3B8', // Slate-400
         glowColor: 'rgba(148, 163, 184, 0.5)',
         animationVariant: 'wavering',
-        description: '돌탑',
+        description: '달팽이',
     },
 
     // Calm (평온) -> Gentle Breeze
