@@ -178,16 +178,16 @@ export function AdminDashboard() {
     }
 
     return (
-        <div className="min-h-screen p-6 pt-20">
+        <div className="min-h-screen p-6 pt-24 pb-20">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
-                <div className="mb-8 text-center">
+                <div className="mb-12 text-center">
                     <h1 className="text-3xl font-bold mb-2">🛡️ 관리자 대시보드</h1>
                     <p className="text-gray-400">감정별 사용자에게 위로 메시지를 일괄 전송합니다</p>
                 </div>
 
                 {/* Stats Summary */}
-                <div className="glass p-4 rounded-xl mb-8">
+                <div className="glass p-4 rounded-xl mb-12">
                     <div className="flex justify-around text-center">
                         <div>
                             <p className="text-2xl font-bold text-purple-400">
@@ -290,7 +290,7 @@ export function AdminDashboard() {
                 </div>
 
                 {/* Dummy Data Generator Section */}
-                <div className="mt-12 mb-8">
+                <div className="mt-16 mb-12">
                     <div className="glass p-6 rounded-xl border border-white/10">
                         <div className="flex items-center justify-between mb-4">
                             <div>
@@ -338,7 +338,7 @@ export function AdminDashboard() {
                 </div>
 
                 {/* Footer Warning */}
-                <div className="mt-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-center">
+                <div className="mt-12 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-center">
                     <p className="text-yellow-400 text-sm">
                         ⚠️ 이 페이지는 관리자 전용입니다. 메시지는 시스템 계정에서 전송됩니다.
                     </p>
