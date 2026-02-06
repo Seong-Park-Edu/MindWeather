@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { EmotionType, EmotionLabels, EmotionIcons, EmotionColors } from '../types/emotion';
 import { getAdminStats, broadcastComfort, getUserProfile, postEmotion } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { RegionCoordinates } from '../components/KoreaMap';
+import { generateRandomAddress } from '../utils/dummyAddress';
 
 interface EmotionPanel {
     emotion: EmotionType;
@@ -123,31 +123,34 @@ export function AdminDashboard() {
         setIsGenerating(true);
         setGenProgress('준비 중...');
 
-        const regions = Object.keys(RegionCoordinates);
         const emotionTypes = Object.values(EmotionType).filter((v): v is EmotionType => typeof v === 'number');
 
         try {
             for (let i = 0; i < dummyCount; i++) {
                 setGenProgress(`${i + 1} / ${dummyCount} 생성 중...`);
 
-                const randomRegion = regions[Math.floor(Math.random() * regions.length)];
                 const randomEmotion = emotionTypes[Math.floor(Math.random() * emotionTypes.length)];
                 const randomIntensity = Math.floor(Math.random() * 5) + 1; // 1-5
                 const randomTag = DUMMY_TAGS[Math.floor(Math.random() * DUMMY_TAGS.length)];
 
-                // Add some randomness to coordinates (scatter within region slightly if needed, but backend handles it? 
-                // Creating payload
+                const addressData = generateRandomAddress();
+
+                // Add slight jitter to coordinates for variety (approx 0.05 degrees ~= 5km)
+                const jitter = () => (Math.random() - 0.5) * 0.1;
+                const lat = addressData.coordinates[1] + jitter();
+                const lng = addressData.coordinates[0] + jitter();
+
                 await postEmotion({
-                    userId: session.user.id, // Admin creates it
+                    userId: session.user.id,
                     emotion: randomEmotion,
                     intensity: randomIntensity,
-                    region: randomRegion, // Just region name, backend/frontend map handles coords
+                    region: addressData.fullAddress,
                     tags: randomTag,
-                    latitude: 0, // Mock, or rely on RegionCoordinates? API expects lat/lng optionally
-                    longitude: 0
+                    latitude: lat,
+                    longitude: lng
                 });
 
-                // Slight delay to not overwhelm DB or hit rate limits too hard
+                // Slight delay to not overwhelm DB
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
 
