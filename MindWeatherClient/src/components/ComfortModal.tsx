@@ -97,17 +97,17 @@ export function ComfortModal({ cluster, onClose }: ComfortModalProps) {
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                className="glass max-w-md w-full p-6 rounded-2xl overflow-hidden relative"
+                className="glass max-w-md w-full p-10 rounded-3xl overflow-hidden relative"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Step 1: Intro */}
                 {step === 'intro' && (
-                    <div className="text-center">
+                    <div className="text-center flex flex-col gap-6">
                         <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{ type: "spring", bounce: 0.5 }}
-                            className="w-24 h-24 mx-auto mb-6 bg-white/10 rounded-full flex items-center justify-center text-6xl"
+                            className="w-24 h-24 mx-auto bg-white/10 rounded-full flex items-center justify-center text-6xl shadow-xl"
                             style={{
                                 backgroundColor: EmotionColors[cluster.dominantEmotion] + '20',
                                 boxShadow: `0 0 30px ${EmotionColors[cluster.dominantEmotion]}40`
@@ -116,13 +116,15 @@ export function ComfortModal({ cluster, onClose }: ComfortModalProps) {
                             {EmotionIcons[cluster.dominantEmotion]}
                         </motion.div>
 
-                        <h3 className="text-2xl font-bold mb-2">{cluster.region}</h3>
-                        <p className="text-white/80 mb-6 leading-relaxed">
-                            이곳에는 지금 <span style={{ color: EmotionColors[cluster.dominantEmotion], fontWeight: 'bold' }}>{EmotionLabels[cluster.dominantEmotion]}</span>의<br />
-                            날씨가 지나가고 있습니다.
-                        </p>
+                        <div>
+                            <h3 className="text-2xl font-bold mb-2">{cluster.region}</h3>
+                            <p className="text-white/80 leading-relaxed">
+                                이곳에는 지금 <span style={{ color: EmotionColors[cluster.dominantEmotion], fontWeight: 'bold' }}>{EmotionLabels[cluster.dominantEmotion]}</span>의<br />
+                                날씨가 지나가고 있습니다.
+                            </p>
+                        </div>
 
-                        <div className="bg-white/5 rounded-xl p-4 mb-8">
+                        <div className="bg-white/5 rounded-xl p-6">
                             <p className="text-sm text-gray-300">
                                 총 {cluster.emotions.length}명의 이웃 중<br />
                                 <strong className="text-white text-lg">{dominantCount}명</strong>이 이 감정을 느끼고 있어요.
@@ -143,8 +145,8 @@ export function ComfortModal({ cluster, onClose }: ComfortModalProps) {
 
                 {/* Step 2: Compose */}
                 {step === 'compose' && (
-                    <>
-                        <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-col gap-6">
+                        <div className="flex items-center justify-between">
                             <button onClick={() => setStep('intro')} className="text-gray-400 hover:text-white transition-colors">
                                 ← 뒤로
                             </button>
@@ -152,8 +154,8 @@ export function ComfortModal({ cluster, onClose }: ComfortModalProps) {
                             <div className="w-8"></div> {/* Spacer */}
                         </div>
 
-                        <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
-                            <div className="flex items-center gap-3 mb-2">
+                        <div className="p-5 rounded-2xl bg-white/5 border border-white/10 shadow-inner">
+                            <div className="flex items-center gap-3">
                                 <span className="text-2xl">{EmotionIcons[cluster.dominantEmotion]}</span>
                                 <p className="text-sm text-gray-300">
                                     <span style={{ color: EmotionColors[cluster.dominantEmotion], fontWeight: 'bold' }}>{EmotionLabels[cluster.dominantEmotion]}</span>을(를) 느끼는 익명의 이웃에게
@@ -162,7 +164,7 @@ export function ComfortModal({ cluster, onClose }: ComfortModalProps) {
                         </div>
 
                         {/* Quick phrases */}
-                        <div className="mb-4">
+                        <div>
                             <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider font-semibold">추천 메세지</p>
                             <div className="flex flex-wrap gap-2">
                                 {comfortPhrases.map((phrase) => (
@@ -181,22 +183,22 @@ export function ComfortModal({ cluster, onClose }: ComfortModalProps) {
                         </div>
 
                         {/* Custom message input */}
-                        <div className="mb-4">
+                        <div>
                             <textarea
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 placeholder="따뜻한 위로의 말을 적어주세요..."
                                 maxLength={500}
-                                className="w-full p-4 rounded-xl bg-black/20 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 resize-none transition-colors min-h-[120px]"
+                                className="w-full p-6 rounded-2xl bg-black/20 border border-white/10 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 resize-none transition-colors min-h-[140px]"
                             />
-                            <p className="text-xs text-gray-600 text-right mt-1">
+                            <p className="text-xs text-gray-600 text-right mt-2">
                                 {message.length}/500
                             </p>
                         </div>
 
                         {/* Error message */}
                         {error && (
-                            <p className="text-red-400 text-sm mb-4 text-center bg-red-500/10 p-2 rounded-lg">{error}</p>
+                            <p className="text-red-400 text-sm text-center bg-red-500/10 p-3 rounded-xl">{error}</p>
                         )}
 
                         <motion.button
@@ -216,7 +218,7 @@ export function ComfortModal({ cluster, onClose }: ComfortModalProps) {
                                 </span>
                             ) : '위로 보내기 🚀'}
                         </motion.button>
-                    </>
+                    </div>
                 )}
 
                 {/* Step 3: Success */}
@@ -244,6 +246,6 @@ export function ComfortModal({ cluster, onClose }: ComfortModalProps) {
                     </motion.div>
                 )}
             </motion.div>
-        </motion.div>
+        </motion.div >
     );
 }

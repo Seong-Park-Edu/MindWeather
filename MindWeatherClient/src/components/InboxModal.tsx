@@ -92,7 +92,7 @@ export function InboxModal({ onClose }: InboxModalProps) {
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                <div className="p-6 border-b border-white/10 flex items-center justify-between">
                     <h2 className="text-xl font-bold">📬 마음 우체통</h2>
                     <button
                         onClick={onClose}
@@ -125,7 +125,7 @@ export function InboxModal({ onClose }: InboxModalProps) {
                 </div>
 
                 {/* Filter Toggle */}
-                <div className="px-4 pt-3 flex justify-end">
+                <div className="px-6 pt-4 flex justify-end">
                     <label className="flex items-center gap-2 cursor-pointer group">
                         <div className={`w-10 h-5 rounded-full p-1 transition-colors duration-300 ${showOnlyToday ? 'bg-purple-500' : 'bg-gray-600'}`}>
                             <div className={`w-3 h-3 rounded-full bg-white transform transition-transform duration-300 ${showOnlyToday ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -143,7 +143,7 @@ export function InboxModal({ onClose }: InboxModalProps) {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar pb-10">
                     {loading ? (
                         <div className="flex items-center justify-center h-full">
                             <div className="w-8 h-8 border-3 border-purple-500 border-t-transparent rounded-full animate-spin" />

@@ -109,7 +109,7 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative w-full max-w-md bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
+                className="relative w-full max-w-md bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl pt-10 px-10 pb-0 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col gap-8"
             >
                 {/* Close Button */}
                 <button
@@ -120,7 +120,7 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
                 </button>
 
                 {/* Header - Centered Navigation */}
-                <div className="flex justify-center items-center gap-6 mb-8 shrink-0 relative">
+                <div className="flex justify-center items-center gap-6 shrink-0 relative">
                     <button onClick={prevMonth} className="text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">◀</button>
                     <h2 className="text-xl font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
                         {year}년 {month}월
@@ -129,7 +129,7 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-2 text-center mb-8 shrink-0">
+                <div className="grid grid-cols-7 gap-2 text-center shrink-0">
                     {['일', '월', '화', '수', '목', '금', '토'].map(d => (
                         <div key={d} className="text-xs text-white/40 font-bold py-2">{d}</div>
                     ))}
@@ -137,7 +137,7 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
                 </div>
 
                 {/* Details List */}
-                <div className="flex-1 overflow-y-auto space-y-4 min-h-0 bg-black/20 rounded-2xl p-4 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto space-y-4 min-h-0 bg-black/20 rounded-2xl p-4 custom-scrollbar pb-10">
                     {selectedDate ? (
                         <>
                             <h3 className="text-sm font-bold text-white/60 mb-3 px-1">
