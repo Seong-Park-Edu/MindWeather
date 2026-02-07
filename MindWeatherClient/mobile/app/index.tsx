@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-// 
+import * as expoRouter from 'expo-router';
+import ReactNativeZoomableView from 'react-native-zoomable-view';
 
 // Components
 import { Header } from '../components/Header';
@@ -13,12 +11,13 @@ import KoreaMap, { normalizeRegionName } from '../components/KoreaMap';
 import { ComfortModal } from '../components/ComfortModal';
 import { InboxModal } from '../components/InboxModal';
 import { EmotionInputModal } from '../components/EmotionInputModal';
-import BackgroundMusic from '../components/BackgroundMusic';
+import { OnboardingTutorial } from '../components/OnboardingTutorial';
 
 // Services & Types
 import { getEmotionsForMap } from '../services/api';
-import { EmotionResponse, EmotionType, EmotionColors, IsNegativeEmotion } from '../types/emotion';
+import { EmotionResponse, EmotionType, EmotionColors } from '../types/emotion';
 import { useAuth } from '../contexts/AuthContext';
+import { hasCompletedOnboarding, setOnboardingCompleted } from '../utils/onboarding';
 
 interface MarkerData {
     region: string;
@@ -34,8 +33,8 @@ interface RegionCluster {
 }
 
 export default function MainScreen() {
-    const { user, loading: authLoading } = useAuth();
-    const router = useRouter();
+    const { user, loading: authLoading, isGuest } = useAuth();
+    const router = expoRouter.useRouter();
 
     // Data state
     const [emotions, setEmotions] = useState<EmotionResponse[]>([]);
@@ -47,16 +46,15 @@ export default function MainScreen() {
     const [showComfortModal, setShowComfortModal] = useState(false);
     const [showInbox, setShowInbox] = useState(false);
     const [selectedCluster, setSelectedCluster] = useState<RegionCluster | null>(null);
+    const [showOnboarding, setShowOnboarding] = useState(false);
+
+    // Zoom state
+    const [currentZoom, setCurrentZoom] = useState(1);
 
     // Fetch map data
     const fetchData = useCallback(async () => {
         try {
-            console.log('--- Fetching Map Data ---');
             const data = await getEmotionsForMap();
-            console.log(`Received ${data.length} emotions from server`);
-            if (data.length > 0) {
-                console.log('First emotion sample:', data[0]);
-            }
             setEmotions(data);
         } catch (error) {
             console.error('Failed to fetch map data', error);
@@ -66,13 +64,23 @@ export default function MainScreen() {
         }
     }, []);
 
-    // Refresh when route is focused
-    // Use router focus to refresh data (especially after generating dummy data)
-    useFocusEffect(
-        useCallback(() => {
+    useEffect(() => {
+        if (user) {
             fetchData();
-        }, [fetchData])
-    );
+        }
+    }, [user, fetchData]);
+
+    // Check onboarding status on mount
+    useEffect(() => {
+        const checkOnboarding = async () => {
+            if (!user) return;
+            const completed = await hasCompletedOnboarding();
+            if (!completed) {
+                setShowOnboarding(true);
+            }
+        };
+        checkOnboarding();
+    }, [user]);
 
     const onRefresh = () => {
         setRefreshing(true);
@@ -80,10 +88,9 @@ export default function MainScreen() {
     };
 
     // Compute markers and colors from emotions
-    const { regionColors, markers, dominantEmotion } = useMemo(() => {
+    const { regionColors, markers } = useMemo(() => {
         const colors: Record<string, string> = {};
         const markerMap = new Map<string, { emotion: EmotionType; count: number }>();
-        const emotionCounts: Record<number, number> = {};
 
         emotions.forEach(item => {
             const normalizedRegion = normalizeRegionName(item.region);
@@ -98,8 +105,6 @@ export default function MainScreen() {
             } else {
                 markerMap.set(normalizedRegion, { emotion: item.emotion, count: 1 });
             }
-
-            emotionCounts[item.emotion] = (emotionCounts[item.emotion] || 0) + 1;
         });
 
         const markerData: MarkerData[] = [];
@@ -111,17 +116,7 @@ export default function MainScreen() {
             });
         });
 
-        // Calculate overall dominant emotion
-        let dominant: EmotionType | null = null;
-        let maxCount = 0;
-        Object.entries(emotionCounts).forEach(([emotion, count]) => {
-            if (count > maxCount) {
-                maxCount = count;
-                dominant = parseInt(emotion) as EmotionType;
-            }
-        });
-
-        return { regionColors: colors, markers: markerData, dominantEmotion: dominant };
+        return { regionColors: colors, markers: markerData };
     }, [emotions]);
 
     // Handle marker click
@@ -148,20 +143,24 @@ export default function MainScreen() {
         fetchData(); // Refresh map
     };
 
-    // Zoom state
-    const [currentZoom, setCurrentZoom] = useState(1);
-
-    const handleScroll = (event: any) => {
-        // Calculate zoom level from scroll event if possible, or use onZoomScaleChange for iOS
-        const zoom = event.nativeEvent.zoomScale || 1;
-        setCurrentZoom(zoom);
+    // Show login prompt for guest users
+    const showGuestPrompt = (feature: string) => {
+        Alert.alert(
+            '로그인이 필요합니다',
+            `${feature} 기능을 사용하려면 로그인이 필요합니다.\n회원가입하시겠어요?`,
+            [
+                { text: '취소', style: 'cancel' },
+                { text: '회원가입', onPress: () => router.push('/signup') },
+                { text: '로그인', onPress: () => router.push('/login') },
+            ]
+        );
     };
 
     // Auth loading state
     if (authLoading) {
         return (
-            <View className='flex-1 bg-gray-900 items-center justify-center'>
-                <ActivityIndicator size='large' color='#A78BFA' />
+            <View className="flex-1 bg-gray-900 items-center justify-center">
+                <ActivityIndicator size="large" color="#A78BFA" />
             </View>
         );
     }
@@ -170,23 +169,32 @@ export default function MainScreen() {
     if (!user) {
         // For now, show a simple login prompt
         return (
-            <View className='flex-1 bg-gray-900 items-center justify-center p-6'>
-                <Text className='text-4xl mb-4'></Text>
-                <Text className='text-white text-2xl font-bold mb-2'>Mind Weather</Text>
-                <Text className='text-gray-400 text-center mb-8'>마음의 날씨를 나누고, 서로를 위로해요</Text>
+            <View className="flex-1 bg-gray-900 items-center justify-center p-6">
+                <Text className="text-4xl mb-4">🌤️</Text>
+                <Text className="text-white text-2xl font-bold mb-2">Mind Weather</Text>
+                <Text className="text-gray-400 text-center mb-8">마음의 날씨를 나누고, 서로를 위로해요</Text>
                 <TouchableOpacity
                     onPress={() => router.push('/login')}
-                    className='bg-purple-600 px-8 py-4 rounded-xl'
+                    className="bg-purple-600 px-8 py-4 rounded-xl"
                 >
-                    <Text className='text-white font-bold text-lg'>시작하기</Text>
+                    <Text className="text-white font-bold text-lg">시작하기</Text>
                 </TouchableOpacity>
             </View>
         );
     }
 
+    const handleScroll = (event: any) => {
+        // Calculate zoom level from scroll event if possible, or use onZoomScaleChange for iOS
+        // Android ScrollView zoom is tricky. 
+        // For now, let's try to get zoom scale.
+        const zoom = event.nativeEvent.zoomScale || 1;
+        setCurrentZoom(zoom);
+        // console.log('Zoom:', zoom);
+    };
+
     return (
-        <View className='flex-1 bg-gray-900'>
-            <SafeAreaView edges={['top']} className='flex-1'>
+        <View className="flex-1 bg-gray-900">
+            <SafeAreaView edges={['top']} className="flex-1">
                 {/* Header */}
                 <Header onInboxPress={() => setShowInbox(true)} />
 
@@ -194,17 +202,21 @@ export default function MainScreen() {
                 <Ticker />
 
                 {/* Main Map Area */}
-                <ScrollView
-                    className='flex-1'
-                    contentContainerStyle={{ flex: 1 }}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#A78BFA" />
-                    }
-                >
-                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <View className="flex-1 overflow-hidden">
+                    <ReactNativeZoomableView
+                        maxZoom={4}
+                        minZoom={1}
+                        zoomStep={0.5}
+                        initialZoom={1}
+                        bindToBorders={false} // Allow panning freely
+                        style={{ flex: 1 }}
+                        onZoomAfter={(event: any, gestureState: any, zoomableViewEventObject: any) => {
+                            setCurrentZoom(zoomableViewEventObject.zoomLevel);
+                        }}
+                    >
                         {loading ? (
-                            <View className='flex-1 justify-center items-center'>
-                                <ActivityIndicator size='large' color='#A78BFA' />
+                            <View className="flex-1 justify-center items-center">
+                                <ActivityIndicator size="large" color="#A78BFA" />
                             </View>
                         ) : (
                             <KoreaMap
@@ -214,36 +226,59 @@ export default function MainScreen() {
                                 currentZoom={currentZoom}
                             />
                         )}
-                    </View>
-                </ScrollView>
-
-                {/* Background Music Player */}
-                <BackgroundMusic dominantEmotion={dominantEmotion} />
+                    </ReactNativeZoomableView>
+                </View>
 
                 {/* Floating Action Buttons */}
-                <View className='absolute bottom-28 right-4 gap-3'>
+                <View className="absolute bottom-28 right-4 gap-3">
+                    {/* Garden FAB */}
+                    <TouchableOpacity
+                        onPress={() => {
+                            if (isGuest) {
+                                showGuestPrompt('감정 정원');
+                            } else {
+                                router.push('/garden');
+                            }
+                        }}
+                        className="w-14 h-14 bg-green-600/80 border border-green-500 rounded-full items-center justify-center"
+                    >
+                        <Text className="text-2xl">🌱</Text>
+                    </TouchableOpacity>
+
                     {/* Diary FAB */}
                     <TouchableOpacity
-                        onPress={() => router.push('/diary')}
-                        className='w-14 h-14 bg-gray-800/80 border border-gray-700 rounded-full items-center justify-center'
+                        onPress={() => {
+                            if (isGuest) {
+                                showGuestPrompt('감정 다이어리');
+                            } else {
+                                router.push('/diary');
+                            }
+                        }}
+                        className="w-14 h-14 bg-gray-800/80 border border-gray-700 rounded-full items-center justify-center"
                     >
-                        <Ionicons name="calendar-outline" size={24} color="white" />
+                        <Text className="text-2xl">📅</Text>
                     </TouchableOpacity>
 
                     {/* Board FAB */}
                     <TouchableOpacity
                         onPress={() => router.push('/board')}
-                        className='w-14 h-14 bg-gray-800/80 border border-gray-700 rounded-full items-center justify-center'
+                        className="w-14 h-14 bg-gray-800/80 border border-gray-700 rounded-full items-center justify-center"
                     >
-                        <Ionicons name="chatbubbles-outline" size={24} color="white" />
+                        <Text className="text-2xl">💌</Text>
                     </TouchableOpacity>
 
                     {/* Emotion Input FAB */}
                     <TouchableOpacity
-                        onPress={() => setShowEmotionInput(true)}
-                        className='w-14 h-14 bg-purple-600 rounded-full items-center justify-center shadow-lg'
+                        onPress={() => {
+                            if (isGuest) {
+                                showGuestPrompt('감정 기록');
+                            } else {
+                                setShowEmotionInput(true);
+                            }
+                        }}
+                        className="w-14 h-14 bg-purple-600 rounded-full items-center justify-center shadow-lg"
                     >
-                        <Ionicons name="add" size={32} color="white" />
+                        <Text className="text-2xl">✏️</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -267,6 +302,14 @@ export default function MainScreen() {
             <InboxModal
                 visible={showInbox}
                 onClose={() => setShowInbox(false)}
+            />
+
+            <OnboardingTutorial
+                visible={showOnboarding}
+                onComplete={async () => {
+                    await setOnboardingCompleted();
+                    setShowOnboarding(false);
+                }}
             />
         </View>
     );

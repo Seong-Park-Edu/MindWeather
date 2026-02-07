@@ -3,12 +3,14 @@ import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } fro
 import { useRouter } from 'expo-router'; // Correct import for expo-router v3
 import { supabase } from '../lib/supabase';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const { enterGuestMode } = useAuth();
 
     async function signInWithEmail() {
         if (!email || !password) {
@@ -77,6 +79,17 @@ export default function LoginScreen() {
                         <Text className="text-blue-600 font-semibold">Sign Up</Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Guest Mode Button */}
+                <TouchableOpacity
+                    className="bg-gray-200 p-4 rounded-lg items-center mt-4"
+                    onPress={() => {
+                        enterGuestMode();
+                        router.replace('/');
+                    }}
+                >
+                    <Text className="text-gray-700 font-semibold text-lg">게스트로 둘러보기 👀</Text>
+                </TouchableOpacity>
             </View>
         </SafeAreaView>
     );

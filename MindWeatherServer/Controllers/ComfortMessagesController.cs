@@ -73,7 +73,7 @@ namespace MindWeatherServer.Controllers
             _context.ComfortMessages.Add(message);
             await _context.SaveChangesAsync();
 
-            // TODO: Firebase FCM 푸시 알림 전송
+            // Firebase FCM 푸시 알림 전송 (Expo Push API) - Removed
 
             return Ok(new { message = "따뜻한 마음이 전달되었습니다.", id = message.Id });
         }
@@ -152,6 +152,8 @@ namespace MindWeatherServer.Controllers
             message.IsThanked = true;
             message.ThankedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+
+            // 감사 알림 전송 (Push Notification Removed)
 
             return Ok(new { message = "감사가 전달되었습니다." });
         }

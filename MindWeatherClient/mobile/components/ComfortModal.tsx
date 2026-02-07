@@ -8,6 +8,7 @@ import {
     ScrollView,
     ActivityIndicator,
     Pressable,
+    Alert,
 } from 'react-native';
 import {
     EmotionType,
@@ -42,7 +43,7 @@ const comfortPhrases = [
 ];
 
 export function ComfortModal({ visible, cluster, onClose }: ComfortModalProps) {
-    const { user } = useAuth();
+    const { user, isGuest } = useAuth();
     const [step, setStep] = useState<'intro' | 'compose' | 'success'>('intro');
     const [message, setMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
@@ -142,11 +143,23 @@ export function ComfortModal({ visible, cluster, onClose }: ComfortModalProps) {
                             </View>
 
                             <TouchableOpacity
-                                onPress={() => setStep('compose')}
+                                onPress={() => {
+                                    if (isGuest) {
+                                        Alert.alert(
+                                            '로그인이 필요합니다',
+                                            '위로 메시지를 보내려면 로그인이 필요합니다.',
+                                            [{ text: '확인' }]
+                                        );
+                                    } else {
+                                        setStep('compose');
+                                    }
+                                }}
                                 className="w-full py-4 rounded-xl items-center"
                                 style={{ backgroundColor: emotionColor }}
                             >
-                                <Text className="text-white font-bold text-lg">💌 랜덤한 1명에게 위로 건네기</Text>
+                                <Text className="text-white font-bold text-lg">
+                                    {isGuest ? '🔒 로그인하고 위로 건네기' : '💌 랜덤한 1명에게 위로 건네기'}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     )}

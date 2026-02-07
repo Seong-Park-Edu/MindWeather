@@ -1,29 +1,33 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-
 import { getUserProfile } from '../services/api';
 
 interface AuthContextType {
     user: User | null;
     session: Session | null;
     isAdmin: boolean;
+    isGuest: boolean;
     loading: boolean;
     signOut: () => Promise<void>;
+    enterGuestMode: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
     user: null,
     session: null,
     isAdmin: false,
+    isGuest: false,
     loading: true,
     signOut: async () => { },
+    enterGuestMode: () => { },
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isGuest, setIsGuest] = useState(false);
     const [loading, setLoading] = useState(true);
 
     const checkAdminStatus = async (token: string) => {
@@ -45,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(session ? session.user : null);
             if (session?.access_token) {
                 checkAdminStatus(session.access_token);
+                setIsGuest(false); // Real login, not guest
             }
             setLoading(false);
         });
@@ -55,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(session ? session.user : null);
             if (session?.access_token) {
                 checkAdminStatus(session.access_token);
+                setIsGuest(false); // Real login, not guest
             } else {
                 setIsAdmin(false);
             }
@@ -67,10 +73,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signOut = async () => {
         await supabase.auth.signOut();
         setIsAdmin(false);
+        setIsGuest(false);
+    };
+
+    const enterGuestMode = () => {
+        // Create a mock guest user for local use
+        const guestUser = {
+            id: 'guest-user',
+            app_metadata: {},
+            user_metadata: {},
+            aud: 'guest',
+            created_at: new Date().toISOString(),
+        } as User;
+
+        setUser(guestUser);
+        setIsGuest(true);
+        setIsAdmin(false);
+        setLoading(false);
     };
 
     return (
-        <AuthContext.Provider value={{ user, session, isAdmin, loading, signOut }}>
+        <AuthContext.Provider value={{ user, session, isAdmin, isGuest, loading, signOut, enterGuestMode }}>
             {children}
         </AuthContext.Provider>
     );

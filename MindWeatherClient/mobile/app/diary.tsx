@@ -7,6 +7,8 @@ import { Calendar, DateData } from 'react-native-calendars';
 import { useAuth } from '../contexts/AuthContext';
 import { getMyEmotions } from '../services/api';
 import { EmotionResponse, EmotionColors, EmotionLabels, EmotionIcons } from '../types/emotion';
+import { StreakDisplay } from '../components/StreakDisplay';
+import { WeeklyInsights } from '../components/WeeklyInsights';
 
 export default function DiaryScreen() {
     const router = useRouter();
@@ -80,6 +82,16 @@ export default function DiaryScreen() {
             </SafeAreaView>
 
             <ScrollView className="flex-1 px-4 pt-4">
+                {/* Streak Display */}
+                <View className="mb-4">
+                    <StreakDisplay />
+                </View>
+
+                {/* Weekly Insights */}
+                <View className="mb-6">
+                    <WeeklyInsights />
+                </View>
+
                 <Calendar
                     theme={{
                         backgroundColor: '#111827',

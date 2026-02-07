@@ -139,6 +139,8 @@ export async function getUserProfile(token: string): Promise<UserProfile> {
     return response.json();
 }
 
+
+
 export async function getAdminStats(token: string): Promise<AdminEmotionStat[]> {
     const response = await fetch(`${API_BASE_URL}/admin/stats`, {
         headers: {
@@ -206,4 +208,63 @@ export async function likePublicMessage(id: number): Promise<{ likeCount: number
     });
     if (!response.ok) throw new Error('Failed to like message');
     return response.json();
+}
+
+// Streak API
+export interface StreakData {
+    currentStreak: number;
+    longestStreak: number;
+    totalDays: number;
+}
+
+export async function getUserStreak(userId: string): Promise<StreakData> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/${userId}/streak`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Streak API Error:', {
+                status: response.status,
+                statusText: response.statusText,
+                body: errorText,
+                url: `${API_BASE_URL}/users/${userId}/streak`
+            });
+            throw new Error(`Failed to fetch streak data: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+    } catch (error) {
+        console.error('getUserStreak error:', error);
+        throw error;
+    }
+}
+
+// Weekly Insights API
+export interface WeeklyInsights {
+    hasData: boolean;
+    totalEmotions: number;
+    dominantEmotion: number | null;
+    averageIntensity: number;
+    emotionBreakdown: Record<number, number>;
+    dayOfWeekPattern: Record<string, number>;
+    positivePercentage: number;
+    mostProductiveDay: string | null;
+}
+
+export async function getWeeklyInsights(userId: string): Promise<WeeklyInsights> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/users/${userId}/insights/weekly`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Weekly Insights API Error:', {
+                status: response.status,
+                statusText: response.statusText,
+                body: errorText,
+                url: `${API_BASE_URL}/users/${userId}/insights/weekly`
+            });
+            throw new Error(`Failed to fetch weekly insights: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+    } catch (error) {
+        console.error('getWeeklyInsights error:', error);
+        throw error;
+    }
 }

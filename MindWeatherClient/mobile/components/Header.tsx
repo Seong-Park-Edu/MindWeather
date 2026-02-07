@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Modal, Pressable, Alert } from 'react-nat
 import { useAuth } from '../contexts/AuthContext';
 import { getNotificationCount } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StreakDisplay } from './StreakDisplay';
 
 const LAST_CHECKED_KEY = 'notificationLastChecked';
 
@@ -14,7 +15,7 @@ interface HeaderProps {
 }
 
 export function Header({ onInboxPress }: HeaderProps) {
-    const { user, isAdmin, signOut } = useAuth();
+    const { user, isAdmin, isGuest, signOut } = useAuth();
     const router = useRouter();
     const [unreadCount, setUnreadCount] = useState(0);
 
@@ -63,21 +64,29 @@ export function Header({ onInboxPress }: HeaderProps) {
     };
 
     return (
-        <View className="flex-row justify-between items-center px-4 py-3 bg-gray-900/80">
-            {/* Title */}
-            <View className="flex-1">
-                <Text className="text-2xl font-bold text-white">
-                    🌤️ Mind Weather
-                </Text>
-                <Text className="text-gray-400 text-xs mt-0.5">
-                    마음의 날씨를 나누고, 서로를 위로해요
-                </Text>
-            </View>
+        <View className="bg-gray-900/80">
+            <View className="flex-row justify-between items-center px-4 py-3">
+                {/* Title */}
+                <View className="flex-1">
+                    <Text className="text-2xl font-bold text-white">
+                        🌤️ Mind Weather
+                    </Text>
+                    <Text className="text-gray-400 text-xs mt-0.5">
+                        마음의 날씨를 나누고, 서로를 위로해요
+                    </Text>
+                </View>
 
-            {/* Right controls */}
-            <View className="flex-row items-center gap-3">
+                {/* Right controls */}
+                <View className="flex-row items-center gap-3">
+                {/* Guest Badge */}
+                {isGuest && (
+                    <View className="px-3 py-1.5 bg-yellow-500/20 rounded-full border border-yellow-500/30">
+                        <Text className="text-yellow-400 text-xs font-bold">👀 게스트</Text>
+                    </View>
+                )}
+
                 {/* Admin Icon */}
-                {isAdmin && (
+                {!isGuest && isAdmin && (
                     <TouchableOpacity
                         onPress={() => router.push('/admin')}
                         className="p-2 bg-purple-600/20 rounded-full border border-purple-500/30 items-center justify-center"
@@ -86,27 +95,43 @@ export function Header({ onInboxPress }: HeaderProps) {
                     </TouchableOpacity>
                 )}
 
-                {/* Notification Bell */}
-                <TouchableOpacity
-                    onPress={handleBellClick}
-                    className="relative p-2 bg-white/10 rounded-full"
-                >
-                    <Text className="text-xl">🔔</Text>
-                    {unreadCount > 0 && (
-                        <View className="absolute -top-1 -right-1 bg-red-500 w-5 h-5 rounded-full items-center justify-center">
-                            <Text className="text-white text-xs font-bold">{unreadCount}</Text>
-                        </View>
-                    )}
-                </TouchableOpacity>
+                {/* Notification Bell - Hide for guests */}
+                {!isGuest && (
+                    <TouchableOpacity
+                        onPress={handleBellClick}
+                        className="relative p-2 bg-white/10 rounded-full"
+                    >
+                        <Text className="text-xl">🔔</Text>
+                        {unreadCount > 0 && (
+                            <View className="absolute -top-1 -right-1 bg-red-500 w-5 h-5 rounded-full items-center justify-center">
+                                <Text className="text-white text-xs font-bold">{unreadCount}</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                )}
 
-                {/* Logout */}
+                {/* Login/Logout */}
                 <TouchableOpacity
-                    onPress={signOut}
+                    onPress={() => {
+                        if (isGuest) {
+                            router.push('/login');
+                        } else {
+                            signOut();
+                        }
+                    }}
                     className="px-3 py-1.5 bg-white/10 rounded-full"
                 >
-                    <Text className="text-white text-xs">로그아웃</Text>
+                    <Text className="text-white text-xs">{isGuest ? '로그인' : '로그아웃'}</Text>
                 </TouchableOpacity>
             </View>
+            </View>
+
+            {/* Streak Display - Compact */}
+            {!isGuest && (
+                <View className="px-4 pb-3">
+                    <StreakDisplay compact />
+                </View>
+            )}
         </View>
     );
 }
