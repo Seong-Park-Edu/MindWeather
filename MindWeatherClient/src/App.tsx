@@ -50,6 +50,11 @@ function AppContent() {
         <>
           <Header />
 
+          {/* Ticker - moved to top */}
+          <div className="relative z-30">
+            <Ticker />
+          </div>
+
           <main className="relative w-full h-full">
             <MapView refreshTrigger={refreshTrigger} />
           </main>
@@ -91,9 +96,6 @@ function AppContent() {
             Admin
           </a>
 
-          <div className="fixed bottom-0 left-0 right-0 z-30">
-            <Ticker />
-          </div>
 
           <AnimatePresence>
             {showInput && (

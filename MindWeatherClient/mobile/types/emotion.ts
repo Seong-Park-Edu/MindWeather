@@ -1,5 +1,4 @@
 // Emotion types matching backend EmotionType enum
-// Using const objects instead of enums for better compatibility with verbatimModuleSyntax
 export const EmotionType = {
     Joy: 0,
     Sadness: 1,
@@ -65,10 +64,10 @@ export const EmotionColors: Record<EmotionType, string> = {
     [EmotionType.Anxiety]: '#9B59B6',
     [EmotionType.Fatigue]: '#95A5A6',
     [EmotionType.Calm]: '#4ECDC4',
-    [EmotionType.Excitement]: '#F472B6', // Pink-400
-    [EmotionType.Boredom]: '#A8A29E',     // Stone-400
-    [EmotionType.Loneliness]: '#6366F1',  // Indigo-500
-    [EmotionType.Depression]: '#1E293B',  // Slate-800
+    [EmotionType.Excitement]: '#F472B6',
+    [EmotionType.Boredom]: '#A8A29E',
+    [EmotionType.Loneliness]: '#6366F1',
+    [EmotionType.Depression]: '#1E293B',
 };
 
 // All emotion values as array
@@ -105,11 +104,11 @@ export interface SendMessageRequest {
 
 // Response DTOs
 export interface EmotionResponse {
-    userId: string; // 위로 메시지 전송용 (실제 유저 ID)
+    userId: string;
     emotion: EmotionType;
     intensity: number;
     region: string;
-    tags?: string; // 태그 정보 추가
+    tags?: string;
     createdAt: string;
     latitude?: number;
     longitude?: number;
@@ -136,40 +135,48 @@ export interface ComfortStatsResponse {
     totalThanks: number;
 }
 
+// Additional types moved from api.ts
+export interface NotificationCount {
+    newMessages: number;
+    newThanks: number;
+    total: number;
+}
+
+export interface AdminEmotionStat {
+    emotion: number;
+    count: number;
+    totalLogs: number;
+}
+
+export interface BroadcastResponse {
+    message: string;
+    count: number;
+}
+
+export interface UserProfile {
+    userId: string;
+    isAdmin: boolean;
+    isBanned: boolean;
+}
+
+export interface PublicMessage {
+    id: number;
+    userId: string;
+    content: string;
+    likeCount: number;
+    createdAt: string;
+}
+
 // Korean regions
 export const KoreanRegions = [
-    '서울',
-    '부산',
-    '대구',
-    '인천',
-    '광주',
-    '대전',
-    '울산',
-    '세종',
-    '경기',
-    '강원',
-    '충북',
-    '충남',
-    '전북',
-    '전남',
-    '경북',
-    '경남',
-    '제주',
+    '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종',
+    '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주',
 ] as const;
 
 export type KoreanRegion = typeof KoreanRegions[number];
 
 // Common tags
 export const CommonTags = [
-    '#출근',
-    '#퇴근',
-    '#학교',
-    '#운동',
-    '#연애',
-    '#가족',
-    '#친구',
-    '#투자',
-    '#날씨',
-    '#월요일',
-    '#주말',
+    '#출근', '#퇴근', '#학교', '#운동', '#연애',
+    '#가족', '#친구', '#투자', '#날씨', '#월요일', '#주말',
 ] as const;
