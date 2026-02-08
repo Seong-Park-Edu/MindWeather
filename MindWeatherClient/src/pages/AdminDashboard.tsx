@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { EmotionType, EmotionLabels, EmotionIcons, EmotionColors } from '../types/emotion';
 import { getAdminStats, broadcastComfort, getUserProfile, postEmotion } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { getRandomDetailedAddress, getTotalDistrictCount } from '../utils/koreaDistrictData';
+import { getRandomDetailedAddress } from '../utils/koreaDistrictData';
 
 interface EmotionPanel {
     emotion: EmotionType;

@@ -324,7 +324,7 @@ export default function MainScreen() {
                 </View>
 
                 {/* Floating Action Buttons */}
-                <View className="absolute bottom-28 right-4 gap-3 items-end">
+                <View style={{ position: 'absolute', bottom: 112, right: 16, zIndex: 999, elevation: 10 }} className="gap-3 items-end">
                     {/* Theme Switcher FAB */}
                     <View>
                         <ThemeSwitcher />

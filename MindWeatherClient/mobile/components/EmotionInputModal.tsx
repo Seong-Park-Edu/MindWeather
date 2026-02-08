@@ -94,16 +94,16 @@ export function EmotionInputModal({ visible, onClose, onSuccess }: EmotionInputM
 
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <View className="flex-1">
+            <View style={{ flex: 1 }}>
                 {/* Backdrop Layer */}
                 <Pressable
-                    className="absolute inset-0 bg-black/60"
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }}
                     onPress={onClose}
                 />
 
                 {/* Content Layer */}
-                <View className="flex-1 justify-center items-center p-4" pointerEvents="box-none">
-                    <View className="bg-gray-900 w-full max-w-lg rounded-2xl overflow-hidden max-h-[90%]">
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }} pointerEvents="box-none">
+                    <View style={{ backgroundColor: '#111827', width: '100%', maxWidth: 512, borderRadius: 16, overflow: 'hidden', maxHeight: '90%' }}>
                         <ScrollView
                             showsVerticalScrollIndicator={false}
                             contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
