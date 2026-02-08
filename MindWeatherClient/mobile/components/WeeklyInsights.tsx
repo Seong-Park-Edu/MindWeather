@@ -68,7 +68,7 @@ export function WeeklyInsights() {
     const dominantEmotionType = insights.dominantEmotion as EmotionType;
 
     return (
-        <View className="bg-gradient-to-br from-purple-900/30 to-pink-900/30 rounded-2xl p-6 border border-purple-500/30">
+        <View className="bg-purple-900/30 rounded-2xl p-6 border border-purple-500/30">
             {/* Header */}
             <View className="flex-row items-center justify-between mb-4">
                 <View>
@@ -81,7 +81,7 @@ export function WeeklyInsights() {
             </View>
 
             {/* Main Stats */}
-            <View className="space-y-4">
+            <View className="gap-4">
                 {/* Dominant Emotion */}
                 <View className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
                     <Text className="text-gray-400 text-xs mb-2">가장 많이 느낀 감정</Text>
@@ -138,7 +138,7 @@ export function WeeklyInsights() {
                 {/* Emotion Breakdown */}
                 <View className="bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
                     <Text className="text-gray-400 text-xs mb-3">감정 분포</Text>
-                    <View className="space-y-2">
+                    <View className="gap-2">
                         {Object.entries(insights.emotionBreakdown)
                             .sort(([, a], [, b]) => b - a)
                             .slice(0, 5)

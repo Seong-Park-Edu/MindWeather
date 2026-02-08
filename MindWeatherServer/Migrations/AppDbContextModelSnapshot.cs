@@ -61,6 +61,43 @@ namespace MindWeatherServer.Migrations
                     b.ToTable("ComfortMessages");
                 });
 
+            modelBuilder.Entity("MindWeatherServer.Models.DailyLetter", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AnalyzedFrom")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("AnalyzedTo")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("DailyLetters");
+                });
+
             modelBuilder.Entity("MindWeatherServer.Models.EmotionLog", b =>
                 {
                     b.Property<long>("Id")
@@ -153,9 +190,26 @@ namespace MindWeatherServer.Migrations
                     b.Property<DateTime>("LastActiveAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("PushToken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PushTokenUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("UserId");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("MindWeatherServer.Models.DailyLetter", b =>
+                {
+                    b.HasOne("MindWeatherServer.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("MindWeatherServer.Models.EmotionLog", b =>

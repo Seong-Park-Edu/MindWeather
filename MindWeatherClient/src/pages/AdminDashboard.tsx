@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { EmotionType, EmotionLabels, EmotionIcons, EmotionColors } from '../types/emotion';
 import { getAdminStats, broadcastComfort, getUserProfile, postEmotion } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { RegionCoordinates } from '../components/KoreaMap';
+import { getRandomDetailedAddress, getTotalDistrictCount } from '../utils/koreaDistrictData';
 
 interface EmotionPanel {
     emotion: EmotionType;
@@ -123,31 +123,30 @@ export function AdminDashboard() {
         setIsGenerating(true);
         setGenProgress('준비 중...');
 
-        const regions = Object.keys(RegionCoordinates);
         const emotionTypes = Object.values(EmotionType).filter((v): v is EmotionType => typeof v === 'number');
 
         try {
             for (let i = 0; i < dummyCount; i++) {
                 setGenProgress(`${i + 1} / ${dummyCount} 생성 중...`);
 
-                const randomRegion = regions[Math.floor(Math.random() * regions.length)];
+                // Get random detailed address (시/도 + 시/군/구 + 읍/면/동)
+                const addressData = getRandomDetailedAddress();
                 const randomEmotion = emotionTypes[Math.floor(Math.random() * emotionTypes.length)];
                 const randomIntensity = Math.floor(Math.random() * 5) + 1; // 1-5
                 const randomTag = DUMMY_TAGS[Math.floor(Math.random() * DUMMY_TAGS.length)];
 
-                // Add some randomness to coordinates (scatter within region slightly if needed, but backend handles it? 
-                // Creating payload
+                // Use fullAddress which includes 읍/면/동 detail
                 await postEmotion({
-                    userId: session.user.id, // Admin creates it
+                    userId: session.user.id,
                     emotion: randomEmotion,
                     intensity: randomIntensity,
-                    region: randomRegion, // Just region name, backend/frontend map handles coords
+                    region: addressData.fullAddress, // e.g., "서울 강남구 역삼동"
                     tags: randomTag,
-                    latitude: 0, // Mock, or rely on RegionCoordinates? API expects lat/lng optionally
+                    latitude: 0,
                     longitude: 0
                 });
 
-                // Slight delay to not overwhelm DB or hit rate limits too hard
+                // Slight delay to not overwhelm DB
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
 

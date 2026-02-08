@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
 using MindWeatherServer.DTOs;
 using MindWeatherServer.Models;
+using MindWeatherServer.Services;
 
 namespace MindWeatherServer.Controllers
 {
@@ -11,10 +12,12 @@ namespace MindWeatherServer.Controllers
     public class ComfortMessagesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly PushNotificationService _pushService;
 
-        public ComfortMessagesController(AppDbContext context)
+        public ComfortMessagesController(AppDbContext context, PushNotificationService pushService)
         {
             _context = context;
+            _pushService = pushService;
         }
 
         // 1. 위로 메시지 보내기 (POST /api/comfort-messages)
@@ -73,7 +76,16 @@ namespace MindWeatherServer.Controllers
             _context.ComfortMessages.Add(message);
             await _context.SaveChangesAsync();
 
-            // Firebase FCM 푸시 알림 전송 (Expo Push API) - Removed
+            // 수신자에게 푸시 알림 전송
+            if (!string.IsNullOrEmpty(receiver.PushToken))
+            {
+                await _pushService.SendPushNotification(
+                    receiver.PushToken,
+                    "💌 새로운 위로가 도착했어요",
+                    "누군가 당신에게 따뜻한 마음을 전했습니다.",
+                    new { type = "comfort_message", messageId = message.Id }
+                );
+            }
 
             return Ok(new { message = "따뜻한 마음이 전달되었습니다.", id = message.Id });
         }
@@ -153,7 +165,17 @@ namespace MindWeatherServer.Controllers
             message.ThankedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            // 감사 알림 전송 (Push Notification Removed)
+            // 발신자에게 감사 알림 전송
+            var sender = await _context.Users.FindAsync(message.SenderId);
+            if (sender != null && !string.IsNullOrEmpty(sender.PushToken))
+            {
+                await _pushService.SendPushNotification(
+                    sender.PushToken,
+                    "💖 감사 인사가 도착했어요",
+                    "당신의 위로가 누군가에게 큰 힘이 되었습니다.",
+                    new { type = "thank_message", messageId = message.Id }
+                );
+            }
 
             return Ok(new { message = "감사가 전달되었습니다." });
         }

@@ -197,6 +197,27 @@ namespace MindWeatherServer.Controllers
             });
         }
 
+        [HttpPost("{userId}/push-token")]
+        public async Task<IActionResult> UpdatePushToken(Guid userId, [FromBody] PushTokenRequest request)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+            user.PushToken = request.Token;
+            user.PushTokenUpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Push token updated successfully" });
+        }
+
+        public class PushTokenRequest
+        {
+            public string Token { get; set; } = string.Empty;
+        }
+
         private string? GetUserIdFromToken(string authorization)
         {
             try

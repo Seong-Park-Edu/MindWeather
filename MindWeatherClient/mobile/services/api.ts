@@ -15,6 +15,58 @@ import {
 // Using the production URL directly for the mobile app
 const API_BASE_URL = 'https://mindweather-production.up.railway.app/api';
 
+// Axios-like API wrapper for consistent usage across the app
+const api = {
+    async get<T = any>(url: string): Promise<{ data: T }> {
+        const response = await fetch(`${API_BASE_URL}${url}`);
+        if (!response.ok) {
+            throw new Error(`GET ${url} failed: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return { data };
+    },
+
+    async post<T = any>(url: string, body?: any): Promise<{ data: T }> {
+        const response = await fetch(`${API_BASE_URL}${url}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: body ? JSON.stringify(body) : undefined,
+        });
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => '');
+            throw new Error(`POST ${url} failed: ${response.status} ${errorBody}`);
+        }
+        const data = await response.json();
+        return { data };
+    },
+
+    async put<T = any>(url: string, body?: any): Promise<{ data: T }> {
+        const response = await fetch(`${API_BASE_URL}${url}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: body ? JSON.stringify(body) : undefined,
+        });
+        if (!response.ok) {
+            throw new Error(`PUT ${url} failed: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return { data };
+    },
+
+    async delete<T = any>(url: string): Promise<{ data: T }> {
+        const response = await fetch(`${API_BASE_URL}${url}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            throw new Error(`DELETE ${url} failed: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return { data };
+    },
+};
+
+export default api;
+
 // Notifications API
 export async function getNotificationCount(userId: string, since?: string): Promise<NotificationCount> {
     try {

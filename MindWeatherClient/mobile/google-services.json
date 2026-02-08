@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "381826851025",
+    "project_id": "mindweather-5c884",
+    "storage_bucket": "mindweather-5c884.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:381826851025:android:c53df6c2930a50db0ee5f0",
+        "android_client_info": {
+          "package_name": "com.jongseong.park.mindweather"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlEwp5G8zegaMcFfkW0smkqxxMtLfu3PQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

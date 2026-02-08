@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { EmotionResponse } from '../types/emotion';
 import { getMyEmotions } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { EmotionColors, EmotionIcons, EmotionLabels } from '../types/emotion';
+import { StreakDisplay } from './StreakDisplay';
+import { WeeklyInsights } from './WeeklyInsights';
 
 interface DiaryModalProps {
     onClose: () => void;
@@ -15,9 +17,10 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [emotions, setEmotions] = useState<EmotionResponse[]>([]);
     const [selectedDate, setSelectedDate] = useState<number | null>(null);
+    const [activeTab, setActiveTab] = useState<'calendar' | 'insights'>('calendar');
 
     const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1; // 1-12
+    const month = currentDate.getMonth() + 1;
 
     useEffect(() => {
         if (userId) {
@@ -45,7 +48,6 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
         setSelectedDate(null);
     };
 
-    // Group emotions by day
     const emotionsByDay = new Map<number, EmotionResponse[]>();
     emotions.forEach(e => {
         const day = new Date(e.createdAt).getDate();
@@ -54,27 +56,22 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
         emotionsByDay.set(day, list);
     });
 
-    // Calendar generation
     const daysInMonth = new Date(year, month, 0).getDate();
-    const firstDayOfWeek = new Date(year, month - 1, 1).getDay(); // 0: Sun
+    const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
 
     const renderCalendarDays = () => {
         const days = [];
-        // Empty cells for padding
         for (let i = 0; i < firstDayOfWeek; i++) {
             days.push(<div key={`empty-${i}`} className="h-10"></div>);
         }
-        // Content cells
         for (let d = 1; d <= daysInMonth; d++) {
             const dayEmotions = emotionsByDay.get(d) || [];
-
             days.push(
                 <button
                     key={d}
                     onClick={() => setSelectedDate(d)}
                     className={`h-10 flex flex-col items-center justify-center rounded-lg transition-colors relative
-						${selectedDate === d ? 'bg-white/20' : 'hover:bg-white/10'}
-					`}
+                        ${selectedDate === d ? 'bg-white/20' : 'hover:bg-white/10'}`}
                 >
                     <span className="text-sm font-medium">{d}</span>
                     {dayEmotions.length > 0 && (
@@ -109,78 +106,129 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative w-full max-w-md bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl pt-10 px-10 pb-0 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col gap-8"
+                className="relative w-full max-w-lg bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             >
                 {/* Close Button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-6 right-6 z-10 p-2 text-white/30 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full"
+                    className="absolute top-4 right-4 z-10 p-2 text-white/30 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full"
                 >
                     ✕
                 </button>
 
-                {/* Header - Centered Navigation */}
-                <div className="flex justify-center items-center gap-6 shrink-0 relative">
-                    <button onClick={prevMonth} className="text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">◀</button>
-                    <h2 className="text-xl font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
-                        {year}년 {month}월
-                    </h2>
-                    <button onClick={nextMonth} className="text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">▶</button>
+                {/* Header with Title */}
+                <h2 className="text-xl font-bold text-white mb-4">📔 감정 다이어리</h2>
+
+                {/* Tab Buttons */}
+                <div className="flex gap-2 mb-4">
+                    <button
+                        onClick={() => setActiveTab('calendar')}
+                        className={`flex-1 py-2 px-4 rounded-xl text-sm font-bold transition-colors ${activeTab === 'calendar'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-white/10 text-white/60 hover:bg-white/20'
+                            }`}
+                    >
+                        📅 캘린더
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('insights')}
+                        className={`flex-1 py-2 px-4 rounded-xl text-sm font-bold transition-colors ${activeTab === 'insights'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-white/10 text-white/60 hover:bg-white/20'
+                            }`}
+                    >
+                        📊 인사이트
+                    </button>
                 </div>
 
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-2 text-center shrink-0">
-                    {['일', '월', '화', '수', '목', '금', '토'].map(d => (
-                        <div key={d} className="text-xs text-white/40 font-bold py-2">{d}</div>
-                    ))}
-                    {renderCalendarDays()}
-                </div>
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto">
+                    <AnimatePresence mode="wait">
+                        {activeTab === 'calendar' ? (
+                            <motion.div
+                                key="calendar"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                className="space-y-4"
+                            >
+                                {/* Month Navigation */}
+                                <div className="flex justify-center items-center gap-4">
+                                    <button onClick={prevMonth} className="text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">◀</button>
+                                    <h3 className="text-lg font-bold bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
+                                        {year}년 {month}월
+                                    </h3>
+                                    <button onClick={nextMonth} className="text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors">▶</button>
+                                </div>
 
-                {/* Details List */}
-                <div className="flex-1 overflow-y-auto space-y-4 min-h-0 bg-black/20 rounded-2xl p-4 custom-scrollbar pb-10">
-                    {selectedDate ? (
-                        <>
-                            <h3 className="text-sm font-bold text-white/60 mb-3 px-1">
-                                {month}월 {selectedDate}일 기록
-                            </h3>
-                            {emotionsByDay.get(selectedDate)?.length ? (
-                                emotionsByDay.get(selectedDate)!.map((e, idx) => (
-                                    <div key={idx} className="bg-white/5 p-3 rounded-lg flex items-start gap-3">
-                                        <div className="text-2xl pt-1">{EmotionIcons[e.emotion]}</div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-center">
-                                                <span className="font-bold text-sm" style={{ color: EmotionColors[e.emotion] }}>
-                                                    {EmotionLabels[e.emotion]}
-                                                </span>
-                                                <span className="text-xs text-white/40">
-                                                    {new Date(e.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
-                                            </div>
-                                            {e.tags && (
-                                                <div className="mt-1 flex flex-wrap gap-1">
-                                                    {e.tags.split(' ').map((tag, i) => (
-                                                        <span key={i} className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-white/70">
-                                                            {tag}
-                                                        </span>
+                                {/* Calendar Grid */}
+                                <div className="grid grid-cols-7 gap-1 text-center">
+                                    {['일', '월', '화', '수', '목', '금', '토'].map(d => (
+                                        <div key={d} className="text-xs text-white/40 font-bold py-2">{d}</div>
+                                    ))}
+                                    {renderCalendarDays()}
+                                </div>
+
+                                {/* Selected Day Detail */}
+                                <div className="bg-black/20 rounded-2xl p-4 min-h-[150px]">
+                                    {selectedDate ? (
+                                        <>
+                                            <h4 className="text-sm font-bold text-white/60 mb-3">
+                                                {month}월 {selectedDate}일 기록
+                                            </h4>
+                                            {emotionsByDay.get(selectedDate)?.length ? (
+                                                <div className="space-y-2">
+                                                    {emotionsByDay.get(selectedDate)!.map((e, idx) => (
+                                                        <div key={idx} className="bg-white/5 p-3 rounded-lg flex items-start gap-3">
+                                                            <div className="text-2xl pt-1">{EmotionIcons[e.emotion]}</div>
+                                                            <div className="flex-1">
+                                                                <div className="flex justify-between items-center">
+                                                                    <span className="font-bold text-sm" style={{ color: EmotionColors[e.emotion] }}>
+                                                                        {EmotionLabels[e.emotion]}
+                                                                    </span>
+                                                                    <span className="text-xs text-white/40">
+                                                                        {new Date(e.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                </div>
+                                                                {e.tags && (
+                                                                    <div className="mt-1 flex flex-wrap gap-1">
+                                                                        {e.tags.split(' ').map((tag, i) => (
+                                                                            <span key={i} className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-white/70">
+                                                                                {tag}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     ))}
                                                 </div>
+                                            ) : (
+                                                <div className="text-center text-white/30 py-4">기록된 감정이 없어요 ☁️</div>
                                             )}
-                                            <div className="text-xs text-white/50 mt-1">{e.region}</div>
+                                        </>
+                                    ) : (
+                                        <div className="text-center text-white/30 py-6 flex flex-col items-center">
+                                            <span className="text-3xl mb-2">📅</span>
+                                            날짜를 선택하여 기록을 확인하세요
                                         </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-center text-white/30 py-4">기록된 감정이 없어요 ☁️</div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="text-center text-white/30 py-10 flex flex-col items-center">
-                            <span className="text-3xl mb-2">📅</span>
-                            날짜를 선택하여 기록을 확인하세요
-                        </div>
-                    )}
+                                    )}
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="insights"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                className="space-y-4"
+                            >
+                                <StreakDisplay />
+                                <WeeklyInsights />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-
             </motion.div>
         </div>
     );

@@ -49,7 +49,7 @@ export function Header() {
 
     return (
         <>
-            <header className="absolute top-0 left-0 right-0 z-10 p-4">
+            <header className="absolute top-0 left-0 right-0 z-30 p-4">
                 <div className="flex justify-between items-start">
                     <div className="text-center flex-1 ml-10">
                         <motion.h1

@@ -14,6 +14,10 @@ namespace MindWeatherServer.Models
 
         public bool IsAdmin { get; set; } = false;
 
+        // Push Notification
+        public string? PushToken { get; set; }
+        public DateTime? PushTokenUpdatedAt { get; set; }
+
         // 관계 설정
         public virtual ICollection<EmotionLog> EmotionLogs { get; set; }
 

@@ -121,7 +121,7 @@ export default function AdminDashboard() {
                 {/* Emotion Panels */}
                 <Text style={styles.sectionTitle}>감정별 위로 방송 📢</Text>
                 {panels.map(panel => (
-                    <View key={panel.emotion} style={[styles.panel, { borderLeftColor: EmotionColors[panel.emotion] }]}>
+                    <View key={panel.emotion} style={[styles.panel, { borderLeftColor: EmotionColors[panel.emotion as EmotionType] }]}>
                         <View style={styles.panelHeader}>
                             <Text style={styles.panelIcon}>{EmotionIcons[panel.emotion as EmotionType]}</Text>
                             <View style={styles.panelInfo}>
@@ -138,13 +138,13 @@ export default function AdminDashboard() {
                             placeholder={`${EmotionLabels[panel.emotion as EmotionType]}을 느끼는 분들에게...`}
                             placeholderTextColor="#666"
                             value={panel.message}
-                            onChangeText={(text) => updateMessage(panel.emotion, text)}
+                            onChangeText={(text) => updateMessage(panel.emotion as EmotionType, text)}
                             multiline
                         />
 
                         <TouchableOpacity
                             style={[styles.broadcastButton, (!panel.message.trim() || panel.isSending || panel.count === 0) && styles.buttonDisabled]}
-                            onPress={() => handleBroadcast(panel.emotion)}
+                            onPress={() => handleBroadcast(panel.emotion as EmotionType)}
                             disabled={!panel.message.trim() || panel.isSending || panel.count === 0}
                         >
                             <Text style={styles.buttonText}>
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111827' },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#1F2937' },
     backButton: { padding: 8 },
-    headerTitle: { color: 'white', fontSize: 20, fontBold: 'bold' },
+    headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
     scrollContent: { padding: 16 },
     statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
     statBox: { flex: 1, backgroundColor: '#1F2937', padding: 16, borderRadius: 12, alignItems: 'center' },

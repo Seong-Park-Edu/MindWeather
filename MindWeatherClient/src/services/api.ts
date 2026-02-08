@@ -233,3 +233,38 @@ export async function likePublicMessage(id: number): Promise<{ likeCount: number
     if (!response.ok) throw new Error('Failed to like message');
     return response.json();
 }
+
+// Streak API
+export interface StreakData {
+    currentStreak: number;
+    longestStreak: number;
+    totalDays: number;
+}
+
+export async function getUserStreak(userId: string): Promise<StreakData> {
+    const response = await fetch(`${API_BASE_URL}/emotions/streak/${userId}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch streak');
+    }
+    return response.json();
+}
+
+// Weekly Insights API
+export interface WeeklyInsightsData {
+    hasData: boolean;
+    totalEmotions: number;
+    dominantEmotion: number;
+    averageIntensity: number;
+    positivePercentage: number;
+    mostProductiveDay: string;
+    dayOfWeekPattern: Record<string, number>;
+    emotionBreakdown: Record<number, number>;
+}
+
+export async function getWeeklyInsights(userId: string): Promise<WeeklyInsightsData> {
+    const response = await fetch(`${API_BASE_URL}/emotions/insights/${userId}`);
+    if (!response.ok) {
+        throw new Error('Failed to fetch weekly insights');
+    }
+    return response.json();
+}

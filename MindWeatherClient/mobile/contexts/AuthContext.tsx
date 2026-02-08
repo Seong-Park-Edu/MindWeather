@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { getUserProfile } from '../services/api';
+import { setupPushNotifications } from '../services/notification';
 
 interface AuthContextType {
     user: User | null;
@@ -30,12 +31,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isGuest, setIsGuest] = useState(false);
     const [loading, setLoading] = useState(true);
 
-    const checkAdminStatus = async (token: string) => {
+    const checkAdminStatus = async (token: string, userId: string) => {
         try {
             const profile = await getUserProfile(token);
             // Handle both camelCase and PascalCase (common in .NET)
             const admin = (profile as any).isAdmin || (profile as any).IsAdmin || false;
             setIsAdmin(!!admin);
+
+            // 푸시 알림 설정 (실제 유저인 경우에만)
+            await setupPushNotifications(userId);
         } catch (error) {
             console.error('Failed to fetch admin status:', error);
             setIsAdmin(false);
@@ -47,8 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setUser(session ? session.user : null);
-            if (session?.access_token) {
-                checkAdminStatus(session.access_token);
+            if (session?.access_token && session.user?.id) {
+                checkAdminStatus(session.access_token, session.user.id);
                 setIsGuest(false); // Real login, not guest
             }
             setLoading(false);
@@ -58,8 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             setUser(session ? session.user : null);
-            if (session?.access_token) {
-                checkAdminStatus(session.access_token);
+            if (session?.access_token && session.user?.id) {
+                checkAdminStatus(session.access_token, session.user.id);
                 setIsGuest(false); // Real login, not guest
             } else {
                 setIsAdmin(false);

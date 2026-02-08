@@ -1,353 +1,614 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, ImageBackground, Image, Modal, TouchableWithoutFeedback, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserStreak } from '../services/api';
+import { getMyEmotions } from '../services/api';
+import { EmotionResponse, EmotionType, AllEmotionTypes, EmotionLabels } from '../types/emotion';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
     withRepeat,
     withTiming,
     withSequence,
+    withSpring,
+    withDelay,
+    Easing,
+    ZoomIn,
+    FadeIn
 } from 'react-native-reanimated';
 
+// Asset Configuration
+const PLANT_IMAGES: Record<string, any> = {
+    sprout: require('../assets/garden/plants/common_sprout.png'),
+    growing: require('../assets/garden/plants/common_growing.png'),
+    auraRing: require('../assets/garden/plants/aura_ring.png'),
+    auraShine: require('../assets/garden/plants/aura_shine.png'),
+    plants: {
+        [EmotionType.Joy]: require('../assets/garden/plants/plant_joy.png'),
+        [EmotionType.Excitement]: require('../assets/garden/plants/plant_excitement.png'),
+        [EmotionType.Sadness]: require('../assets/garden/plants/plant_sadness.png'),
+        [EmotionType.Depression]: require('../assets/garden/plants/plant_depression.png'),
+        [EmotionType.Anger]: require('../assets/garden/plants/plant_anger.png'),
+        [EmotionType.Calm]: require('../assets/garden/plants/plant_calm.png'),
+        [EmotionType.Anxiety]: require('../assets/garden/plants/plant_anxiety.png'),
+        [EmotionType.Fatigue]: require('../assets/garden/plants/plant_fatigue.png'),
+        [EmotionType.Boredom]: require('../assets/garden/plants/plant_boredom.png'),
+        [EmotionType.Loneliness]: require('../assets/garden/plants/plant_loneliness.png'),
+    }
+};
+
+const PLANT_INFO: Record<number, { name: string; color: string }> = {
+    [EmotionType.Joy]: { name: '해바라기', color: '#FFD700' },
+    [EmotionType.Excitement]: { name: '해바라기(활력)', color: '#FFA500' },
+    [EmotionType.Sadness]: { name: '튤립', color: '#FF69B4' },
+    [EmotionType.Depression]: { name: '백합', color: '#4B0082' },
+    [EmotionType.Anger]: { name: '선인장', color: '#2E8B57' },
+    [EmotionType.Calm]: { name: '분재나무', color: '#228B22' },
+    [EmotionType.Anxiety]: { name: '라벤더', color: '#9370DB' },
+    [EmotionType.Fatigue]: { name: '버섯', color: '#8B4513' },
+    [EmotionType.Boredom]: { name: '강아지풀', color: '#DAA520' },
+    [EmotionType.Loneliness]: { name: '가을나무', color: '#A0522D' },
+};
+
+const getLevel = (count: number) => {
+    if (count === 0) return 0;
+    if (count < 3) return 1;
+    if (count < 6) return 2;
+    if (count < 10) return 3;
+    if (count < 20) return 4;
+    if (count < 30) return 5;
+    return 6;
+};
+
+const getExampleSource = (type: EmotionType, level: number) => {
+    if (level === 0) return PLANT_IMAGES.sprout;
+    if (level === 1) return PLANT_IMAGES.sprout;
+    if (level === 2) return PLANT_IMAGES.growing;
+    return PLANT_IMAGES.plants[type];
+};
+
+const getPlantSource = (type: EmotionType, level: number) => {
+    if (level === 0) return null;
+    return getExampleSource(type, level);
+};
+
 interface GardenState {
-    level: number;
     waterLevel: number;
-    plants: PlantData[];
+    waterDrops: number;
     lastWatered: string;
+    lastLoginDate: string;
 }
 
-interface PlantData {
-    id: string;
-    type: string;
-    emoji: string;
-    size: number;
-    position: { x: number; y: number };
-    color: string;
-}
-
-const PLANT_TYPES = [
-    { type: 'flower', emoji: '🌸', color: '#FF69B4', minLevel: 0 },
-    { type: 'tree', emoji: '🌳', color: '#228B22', minLevel: 7 },
-    { type: 'sunflower', emoji: '🌻', color: '#FFD700', minLevel: 14 },
-    { type: 'rose', emoji: '🌹', color: '#DC143C', minLevel: 21 },
-    { type: 'cherry', emoji: '🌸', color: '#FFB6C1', minLevel: 30 },
-    { type: 'palm', emoji: '🌴', color: '#006400', minLevel: 50 },
-    { type: 'cactus', emoji: '🌵', color: '#90EE90', minLevel: 100 },
-];
-
-const AnimatedPlant = ({ plant, onPress }: { plant: PlantData; onPress: () => void }) => {
-    const scale = useSharedValue(1);
-    const translateY = useSharedValue(0);
+const Sparkle = ({ delay }: { delay: number }) => {
+    const opacity = useSharedValue(0);
+    const scale = useSharedValue(0);
 
     useEffect(() => {
+        opacity.value = withRepeat(
+            withSequence(
+                withDelay(delay, withTiming(1, { duration: 500 })),
+                withTiming(0, { duration: 500 })
+            ),
+            -1,
+            true
+        );
         scale.value = withRepeat(
             withSequence(
-                withTiming(1.1, { duration: 2000 }),
-                withTiming(1, { duration: 2000 })
+                withDelay(delay, withTiming(1, { duration: 500 })),
+                withTiming(0.5, { duration: 500 })
             ),
             -1,
-            false
-        );
-
-        translateY.value = withRepeat(
-            withSequence(
-                withTiming(-5, { duration: 1500 }),
-                withTiming(0, { duration: 1500 })
-            ),
-            -1,
-            false
+            true
         );
     }, []);
 
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            transform: [
-                { scale: scale.value },
-                { translateY: translateY.value },
-            ],
-        };
-    });
+    const animStyle = useAnimatedStyle(() => ({
+        opacity: opacity.value,
+        transform: [{ scale: scale.value }],
+    }));
+
+    const top = Math.random() * 80 - 40;
+    const left = Math.random() * 80 - 40;
 
     return (
-        <TouchableOpacity
-            onPress={onPress}
-            style={{
-                position: 'absolute',
-                left: plant.position.x,
-                top: plant.position.y,
-            }}
-        >
+        <Animated.View style={[{ position: 'absolute', top, left, zIndex: 10 }, animStyle]}>
+            <Text style={{ fontSize: 16 }}>✨</Text>
+        </Animated.View>
+    );
+};
+
+const AuraEffect = ({ level, color, waterLevel, sizeMultiplier = 1 }: { level: number; color: string; waterLevel: number; sizeMultiplier?: number }) => {
+    if (waterLevel < 30) return null;
+
+    const rotation = useSharedValue(0);
+    const scale = useSharedValue(1);
+
+    useEffect(() => {
+        if (level >= 4) {
+            rotation.value = withRepeat(
+                withTiming(360, { duration: 8000, easing: Easing.linear }),
+                -1,
+                false
+            );
+            scale.value = withRepeat(
+                withSequence(
+                    withTiming(1.1, { duration: 2000 }),
+                    withTiming(1, { duration: 2000 })
+                ),
+                -1,
+                true
+            );
+        }
+    }, [level]);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
+        opacity: 0.6,
+    }));
+
+    if (level < 4) return null;
+
+    return (
+        <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
             <Animated.View style={animatedStyle}>
-                <Text style={{ fontSize: plant.size }}>{plant.emoji}</Text>
+                <Image
+                    source={PLANT_IMAGES.auraRing}
+                    style={{ width: 110 * sizeMultiplier, height: 110 * sizeMultiplier, tintColor: color }}
+                    resizeMode="contain"
+                />
             </Animated.View>
+            {level >= 6 && (
+                <Animated.View style={{ position: 'absolute', opacity: 0.8 }}>
+                    <Image
+                        source={PLANT_IMAGES.auraShine}
+                        style={{ width: 140 * sizeMultiplier, height: 140 * sizeMultiplier, tintColor: 'gold' }}
+                        resizeMode="contain"
+                    />
+                </Animated.View>
+            )}
+        </View>
+    );
+};
+
+const GuardianPlant = ({
+    type,
+    count,
+    waterLevel,
+    onPress
+}: {
+    type: EmotionType;
+    count: number;
+    waterLevel: number;
+    onPress: () => void;
+}) => {
+    const level = getLevel(count);
+    const source = getPlantSource(type, level);
+    const info = PLANT_INFO[type];
+
+    const scale = useSharedValue(0);
+
+    useEffect(() => {
+        if (level > 0) {
+            scale.value = withSpring(1);
+        }
+    }, [level]);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    const isWithered = waterLevel < 30 && level > 0;
+
+    if (level === 0) {
+        return (
+            <TouchableOpacity onPress={onPress} style={styles.plantSlotEmpty}>
+                <View style={styles.soilSpot} />
+                <Text style={styles.plantLabelEmpty}>{EmotionLabels[type]}</Text>
+            </TouchableOpacity>
+        );
+    }
+
+    return (
+        <TouchableOpacity onPress={onPress} style={styles.plantSlot}>
+            <View style={styles.plantContainer}>
+                <AuraEffect level={level} color={info.color} waterLevel={waterLevel} />
+                {waterLevel >= 80 && level >= 1 && (
+                    <>
+                        <Sparkle delay={0} />
+                        <Sparkle delay={500} />
+                        <Sparkle delay={1000} />
+                    </>
+                )}
+                <Animated.View style={[animatedStyle, isWithered && styles.witheredPlant]}>
+                    <Image
+                        source={source}
+                        style={{ width: 90, height: 90 }}
+                        resizeMode="contain"
+                    />
+                </Animated.View>
+                {isWithered && (
+                    <Text style={styles.waterDropIcon}>💧</Text>
+                )}
+            </View>
+            <View style={[styles.plantLabel, isWithered && styles.plantLabelWithered]}>
+                <Text style={styles.plantLabelText}>
+                    {EmotionLabels[type]} Lv.{level}
+                </Text>
+                {level >= 6 && !isWithered && <Text style={styles.masterText}>MASTER</Text>}
+            </View>
         </TouchableOpacity>
+    );
+};
+
+const PlantDetailModal = ({
+    plant,
+    waterLevel,
+    onClose
+}: {
+    plant: { type: EmotionType; count: number } | null;
+    waterLevel: number;
+    onClose: () => void;
+}) => {
+    if (!plant) return null;
+
+    const { type, count } = plant;
+    const level = getLevel(count);
+    const info = PLANT_INFO[type];
+    const source = getExampleSource(type, level);
+
+    let message = "";
+    let nextGoal = 0;
+
+    if (level < 3) nextGoal = [1, 3, 6][level];
+    else if (level === 3) nextGoal = 10;
+    else if (level === 4) nextGoal = 20;
+    else if (level === 5) nextGoal = 30;
+
+    if (level < 6) {
+        const needed = nextGoal - count;
+        message = (needed > 0) ? `다음 단계까지 ${needed}번 더 기록 필요` : "성장 가능!";
+        if (level === 0) message = "첫 기록을 남겨보세요!";
+    } else {
+        message = "최고 레벨 도달! (전설의 정원사)";
+    }
+
+    let status = "보통";
+    let statusColor = "#666";
+    if (waterLevel < 30) {
+        status = "목마름 💧";
+        statusColor = "#ef4444";
+    } else if (waterLevel >= 80) {
+        status = "행복함 ✨";
+        statusColor = "#3b82f6";
+    }
+
+    return (
+        <Modal transparent animationType="fade" visible={!!plant} onRequestClose={onClose}>
+            <View style={styles.modalOverlay}>
+                <TouchableWithoutFeedback onPress={onClose}>
+                    <View style={StyleSheet.absoluteFillObject} />
+                </TouchableWithoutFeedback>
+
+                <Animated.View entering={ZoomIn.duration(300)} style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalEmotion}>{EmotionLabels[type]}</Text>
+                        <Text style={styles.modalPlantName}>{info.name}</Text>
+                        <View style={styles.modalBadges}>
+                            <View style={[styles.badge, level >= 6 ? styles.badgeMaster : styles.badgeNormal]}>
+                                <Text style={[styles.badgeText, level >= 6 ? styles.badgeTextMaster : styles.badgeTextNormal]}>Lv.{level}</Text>
+                            </View>
+                            <View style={[styles.badge, styles.badgeGray]}>
+                                <Text style={[styles.badgeText, { color: statusColor }]}>{status}</Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    <View style={styles.modalPlantView}>
+                        <AuraEffect level={level} color={info.color} waterLevel={waterLevel} sizeMultiplier={2.5} />
+                        {waterLevel >= 80 && level >= 1 && (
+                            <View style={{ transform: [{ scale: 2 }] }}>
+                                <Sparkle delay={0} />
+                                <Sparkle delay={500} />
+                            </View>
+                        )}
+                        <Image
+                            source={source}
+                            style={{ width: 240, height: 240, opacity: (waterLevel < 30 && level > 0) ? 0.6 : 1 }}
+                            resizeMode="contain"
+                        />
+                    </View>
+
+                    <View style={styles.progressBox}>
+                        <View style={styles.progressRow}>
+                            <Text style={styles.progressLabel}>이번 달 기록</Text>
+                            <Text style={styles.progressValue}>{count}회</Text>
+                        </View>
+                        <View style={styles.progressBarBg}>
+                            <View
+                                style={[styles.progressBarFill, {
+                                    width: level >= 6 ? '100%' : `${Math.min(100, (count / nextGoal) * 100)}%`,
+                                    backgroundColor: info.color
+                                }]}
+                            />
+                        </View>
+                        <Text style={styles.progressMessage}>{message}</Text>
+                    </View>
+
+                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                        <Text style={styles.closeButtonText}>닫기</Text>
+                    </TouchableOpacity>
+                </Animated.View>
+            </View>
+        </Modal>
     );
 };
 
 export default function GardenScreen() {
     const router = useRouter();
     const { user, isGuest } = useAuth();
-    const [garden, setGarden] = useState<GardenState | null>(null);
+
+    const [emotions, setEmotions] = useState<EmotionResponse[]>([]);
+    const [gardenState, setGardenState] = useState<GardenState>({
+        waterLevel: 50,
+        waterDrops: 3,
+        lastWatered: new Date().toISOString(),
+        lastLoginDate: ''
+    });
+    const [selectedPlant, setSelectedPlant] = useState<{ type: EmotionType, count: number } | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        loadGarden();
-    }, [user]);
-
-    const loadGarden = async () => {
-        if (!user || isGuest) {
-            setLoading(false);
-            return;
-        }
+    const fetchData = useCallback(async () => {
+        if (!user || isGuest) return;
 
         try {
-            const key = `@garden_${user.id}`;
-            const stored = await AsyncStorage.getItem(key);
+            setLoading(true);
+            const now = new Date();
+            const data = await getMyEmotions(user.id, now.getFullYear(), now.getMonth() + 1);
+            setEmotions(data);
 
-            if (stored) {
-                setGarden(JSON.parse(stored));
-            } else {
-                // Initialize new garden
-                const newGarden: GardenState = {
-                    level: 1,
-                    waterLevel: 50,
-                    plants: [
-                        {
-                            id: '1',
-                            type: 'flower',
-                            emoji: '🌸',
-                            size: 40,
-                            position: { x: 50, y: 100 },
-                            color: '#FF69B4',
-                        },
-                    ],
-                    lastWatered: new Date().toISOString(),
-                };
-                await saveGarden(newGarden);
-                setGarden(newGarden);
+            const savedState = await AsyncStorage.getItem(`@garden_state_${user.id}`);
+            let currentState = savedState ? JSON.parse(savedState) : {
+                waterLevel: 50,
+                waterDrops: 3,
+                lastWatered: new Date().toISOString(),
+                lastLoginDate: ''
+            };
+
+            if (currentState.waterDrops === undefined) currentState.waterDrops = 3;
+            if (currentState.lastLoginDate === undefined) currentState.lastLoginDate = '';
+
+            const today = now.toISOString().split('T')[0];
+            if (currentState.lastLoginDate !== today) {
+                currentState.waterDrops = (currentState.waterDrops || 0) + 3;
+                currentState.lastLoginDate = today;
+                Alert.alert('🎁 출석 선물', '오늘의 물방울 3개를 받았습니다!');
+                await AsyncStorage.setItem(`@garden_state_${user.id}`, JSON.stringify(currentState));
             }
 
-            // Update level based on streak
-            const streak = await getUserStreak(user.id);
-            if (stored) {
-                const currentGarden = JSON.parse(stored);
-                if (currentGarden.level !== streak.currentStreak + 1) {
-                    currentGarden.level = Math.max(1, streak.currentStreak + 1);
-                    await saveGarden(currentGarden);
-                    setGarden(currentGarden);
-                }
-            }
+            setGardenState(currentState);
+
         } catch (error) {
             console.error('Failed to load garden:', error);
         } finally {
             setLoading(false);
         }
+    }, [user, isGuest]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const emotionCounts = useMemo(() => {
+        const counts: Record<number, number> = {};
+        AllEmotionTypes.forEach(t => counts[t] = 0);
+        emotions.forEach(e => {
+            if (counts[e.emotion] !== undefined) {
+                counts[e.emotion]++;
+            }
+        });
+        return counts;
+    }, [emotions]);
+
+    const handlePlantPress = (type: EmotionType, count: number) => {
+        setSelectedPlant({ type, count });
     };
 
-    const saveGarden = async (gardenData: GardenState) => {
-        if (!user) return;
-        try {
-            const key = `@garden_${user.id}`;
-            await AsyncStorage.setItem(key, JSON.stringify(gardenData));
-        } catch (error) {
-            console.error('Failed to save garden:', error);
-        }
-    };
-
-    const waterPlants = async () => {
-        if (!garden) return;
-
-        const newWaterLevel = Math.min(100, garden.waterLevel + 20);
-        const updatedGarden = { ...garden, waterLevel: newWaterLevel, lastWatered: new Date().toISOString() };
-        await saveGarden(updatedGarden);
-        setGarden(updatedGarden);
-
-        Alert.alert('💧 물 주기 완료!', '식물들이 건강하게 자라고 있어요.');
-    };
-
-    const plantNewPlant = async () => {
-        if (!garden) return;
-
-        // Check if user has unlocked new plants
-        const availablePlants = PLANT_TYPES.filter(p => p.minLevel <= garden.level);
-        if (garden.plants.length >= availablePlants.length) {
-            Alert.alert('🌱', '모든 식물을 심었어요! 더 높은 레벨에서 새로운 식물을 만나보세요.');
+    const handleWatering = async () => {
+        if (gardenState.waterDrops <= 0) {
+            Alert.alert('💧 물방울 부족', '물방울이 없어요!\n감정 일기를 쓰거나 내일 다시 방문해주세요.');
             return;
         }
 
-        const nextPlant = availablePlants[garden.plants.length];
-        const randomX = Math.random() * 250 + 20;
-        const randomY = Math.random() * 200 + 50;
+        if (gardenState.waterLevel >= 100) {
+            Alert.alert('💧', '이미 수분이 가득 차 있어요!');
+            return;
+        }
 
-        const newPlant: PlantData = {
-            id: Date.now().toString(),
-            type: nextPlant.type,
-            emoji: nextPlant.emoji,
-            size: 40,
-            position: { x: randomX, y: randomY },
-            color: nextPlant.color,
+        const newLevel = Math.min(100, gardenState.waterLevel + 10);
+        const newDrops = gardenState.waterDrops - 1;
+
+        const newState = {
+            ...gardenState,
+            waterLevel: newLevel,
+            waterDrops: newDrops,
+            lastWatered: new Date().toISOString()
         };
 
-        const updatedGarden = {
-            ...garden,
-            plants: [...garden.plants, newPlant],
-        };
+        await AsyncStorage.setItem(`@garden_state_${user?.id}`, JSON.stringify(newState));
+        setGardenState(newState);
 
-        await saveGarden(updatedGarden);
-        setGarden(updatedGarden);
-        Alert.alert('🌱 새 식물!', `${nextPlant.emoji}를 심었어요!`);
-    };
-
-    const handlePlantPress = (plant: PlantData) => {
-        Alert.alert(
-            `${plant.emoji} ${plant.type}`,
-            `이 식물은 레벨 ${PLANT_TYPES.find(p => p.type === plant.type)?.minLevel}에서 잠금 해제되었어요!`
-        );
+        Alert.alert('💧', '모든 식물이 촉촉해졌어요!');
     };
 
     if (isGuest) {
         return (
-            <View className="flex-1 bg-gray-900 items-center justify-center p-6">
-                <Text className="text-4xl mb-4">🔒</Text>
-                <Text className="text-white text-xl font-bold mb-2">로그인이 필요해요</Text>
-                <Text className="text-gray-400 text-center mb-6">
-                    나만의 감정 정원을 가꾸려면{'\n'}로그인이 필요합니다.
-                </Text>
-                <TouchableOpacity
-                    onPress={() => router.push('/login')}
-                    className="bg-purple-600 px-6 py-3 rounded-xl"
-                >
-                    <Text className="text-white font-bold">로그인하기</Text>
+            <View style={styles.guestContainer}>
+                <Text style={styles.guestIcon}>🔒</Text>
+                <Text style={styles.guestTitle}>로그인이 필요해요</Text>
+                <TouchableOpacity onPress={() => router.push('/login')} style={styles.guestButton}>
+                    <Text style={styles.guestButtonText}>로그인하기</Text>
                 </TouchableOpacity>
             </View>
         );
     }
 
-    if (loading || !garden) {
-        return (
-            <View className="flex-1 bg-gray-900 items-center justify-center">
-                <Text className="text-2xl">🌱</Text>
-                <Text className="text-gray-400 mt-2">정원 불러오는 중...</Text>
-            </View>
-        );
-    }
-
-    const availablePlants = PLANT_TYPES.filter(p => p.minLevel <= garden.level);
-    const nextUnlock = PLANT_TYPES.find(p => p.minLevel > garden.level);
-
     return (
-        <View className="flex-1 bg-gradient-to-b from-sky-300 to-green-200" style={{ backgroundColor: '#87CEEB' }}>
-            <SafeAreaView edges={['top']} className="flex-1">
-                {/* Header */}
-                <View className="flex-row justify-between items-center px-4 py-3 bg-green-600/80">
+        <ImageBackground
+            source={require('../assets/garden/garden_bg.png')}
+            style={{ flex: 1 }}
+            resizeMode="cover"
+        >
+            <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+                <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()}>
                         <Ionicons name="arrow-back" size={24} color="white" />
                     </TouchableOpacity>
-                    <Text className="text-white text-xl font-bold">🌱 감정 정원</Text>
-                    <View style={{ width: 24 }} />
+                    <Text style={styles.headerTitle}>감정 수호 정원</Text>
+                    <TouchableOpacity onPress={fetchData}>
+                        <Ionicons name="refresh" size={24} color="white" />
+                    </TouchableOpacity>
                 </View>
 
-                <ScrollView className="flex-1">
-                    {/* Stats */}
-                    <View className="px-4 py-4 bg-white/80">
-                        <View className="flex-row items-center justify-around">
-                            <View className="items-center">
-                                <Text className="text-2xl mb-1">🏆</Text>
-                                <Text className="text-gray-600 text-xs">레벨</Text>
-                                <Text className="text-gray-900 text-xl font-bold">{garden.level}</Text>
-                            </View>
-
-                            <View className="items-center">
-                                <Text className="text-2xl mb-1">💧</Text>
-                                <Text className="text-gray-600 text-xs">수분</Text>
-                                <Text className="text-blue-600 text-xl font-bold">{garden.waterLevel}%</Text>
-                            </View>
-
-                            <View className="items-center">
-                                <Text className="text-2xl mb-1">🌸</Text>
-                                <Text className="text-gray-600 text-xs">식물</Text>
-                                <Text className="text-green-600 text-xl font-bold">
-                                    {garden.plants.length}/{availablePlants.length}
-                                </Text>
-                            </View>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ minHeight: '100%' }}>
+                    <View style={styles.statsBar}>
+                        <View style={styles.statItem}>
+                            <Text style={styles.statEmoji}>🌱</Text>
+                            <Text style={styles.statLabel}>식물</Text>
+                            <Text style={styles.statValue}>
+                                {Object.values(emotionCounts).filter(c => c > 0).length} / 10
+                            </Text>
                         </View>
-
-                        {/* Progress to next unlock */}
-                        {nextUnlock && (
-                            <View className="mt-4 bg-purple-50 p-3 rounded-xl">
-                                <Text className="text-purple-900 text-xs font-medium mb-1">
-                                    다음 잠금 해제: {nextUnlock.emoji}
-                                </Text>
-                                <View className="flex-row items-center gap-2">
-                                    <View className="flex-1 h-2 bg-gray-300 rounded-full overflow-hidden">
-                                        <View
-                                            className="h-full bg-purple-500 rounded-full"
-                                            style={{ width: `${(garden.level / nextUnlock.minLevel) * 100}%` }}
-                                        />
-                                    </View>
-                                    <Text className="text-xs text-gray-600">
-                                        {garden.level}/{nextUnlock.minLevel}
-                                    </Text>
-                                </View>
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Garden Area */}
-                    <View className="flex-1 relative" style={{ minHeight: 400, backgroundColor: '#90EE90' }}>
-                        {/* Ground */}
-                        <View
-                            className="absolute bottom-0 left-0 right-0"
-                            style={{ height: 100, backgroundColor: '#8B4513' }}
-                        />
-
-                        {/* Plants */}
-                        {garden.plants.map((plant) => (
-                            <AnimatedPlant key={plant.id} plant={plant} onPress={() => handlePlantPress(plant)} />
-                        ))}
-
-                        {/* Empty message */}
-                        {garden.plants.length === 0 && (
-                            <View className="absolute inset-0 items-center justify-center">
-                                <Text className="text-gray-600 text-center">
-                                    식물을 심어보세요! 🌱
-                                </Text>
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Actions */}
-                    <View className="px-4 py-6 bg-white space-y-3">
-                        <TouchableOpacity
-                            onPress={waterPlants}
-                            className="bg-blue-500 py-4 rounded-xl flex-row items-center justify-center gap-2"
-                        >
-                            <Text className="text-2xl">💧</Text>
-                            <Text className="text-white font-bold text-lg">물 주기</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            onPress={plantNewPlant}
-                            className="bg-green-500 py-4 rounded-xl flex-row items-center justify-center gap-2"
-                        >
-                            <Text className="text-2xl">🌱</Text>
-                            <Text className="text-white font-bold text-lg">새 식물 심기</Text>
-                        </TouchableOpacity>
-
-                        <View className="bg-amber-50 p-4 rounded-xl">
-                            <Text className="text-amber-900 text-sm">
-                                💡 <Text className="font-bold">팁:</Text> 감정을 기록하면 정원 레벨이 올라가요!
-                                연속으로 기록할수록 더 많은 식물을 잠금 해제할 수 있어요.
+                        <View style={styles.statItem}>
+                            <Text style={styles.statEmoji}>💧</Text>
+                            <Text style={styles.statLabel}>물방울</Text>
+                            <Text style={styles.statValue}>{gardenState.waterDrops}개</Text>
+                        </View>
+                        <View style={styles.statItem}>
+                            <Text style={styles.statEmoji}>
+                                {gardenState.waterLevel >= 80 ? '✨' : gardenState.waterLevel < 30 ? '🥀' : '🌿'}
+                            </Text>
+                            <Text style={styles.statLabel}>수분</Text>
+                            <Text style={[styles.statValue, gardenState.waterLevel < 30 && { color: '#dc2626' }]}>
+                                {gardenState.waterLevel}%
                             </Text>
                         </View>
                     </View>
+
+                    <View style={styles.gardenGrid}>
+                        {loading ? (
+                            <ActivityIndicator size="large" color="white" style={{ marginTop: 100 }} />
+                        ) : (
+                            <View style={styles.plantGrid}>
+                                {AllEmotionTypes.map((type) => (
+                                    <GuardianPlant
+                                        key={type}
+                                        type={type}
+                                        count={emotionCounts[type] || 0}
+                                        waterLevel={gardenState.waterLevel}
+                                        onPress={() => handlePlantPress(type, emotionCounts[type] || 0)}
+                                    />
+                                ))}
+                            </View>
+                        )}
+
+                        {!loading && emotions.length === 0 && (
+                            <View style={styles.emptyState}>
+                                <Text style={styles.emptyStateText}>
+                                    감정을 기록하여 수호 식물을 깨워보세요!
+                                </Text>
+                            </View>
+                        )}
+                    </View>
                 </ScrollView>
+
+                <TouchableOpacity
+                    onPress={handleWatering}
+                    style={styles.fab}
+                >
+                    <Text style={styles.fabEmoji}>🚿</Text>
+                    <View style={styles.fabBadge}>
+                        <Text style={styles.fabBadgeText}>{gardenState.waterDrops}</Text>
+                    </View>
+                </TouchableOpacity>
+
+                <PlantDetailModal
+                    plant={selectedPlant}
+                    waterLevel={gardenState.waterLevel}
+                    onClose={() => setSelectedPlant(null)}
+                />
             </SafeAreaView>
-        </View>
+        </ImageBackground>
     );
 }
+
+const styles = StyleSheet.create({
+    guestContainer: { flex: 1, backgroundColor: '#1f2937', alignItems: 'center', justifyContent: 'center', padding: 24 },
+    guestIcon: { fontSize: 48, marginBottom: 16 },
+    guestTitle: { color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
+    guestButton: { backgroundColor: '#9333ea', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginTop: 16 },
+    guestButtonText: { color: 'white', fontWeight: 'bold' },
+
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 10 },
+    headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+
+    statsBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 16, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 16, marginTop: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
+    statItem: { alignItems: 'center' },
+    statEmoji: { fontSize: 24 },
+    statLabel: { fontSize: 12, fontWeight: 'bold', color: '#1f2937', marginTop: 4 },
+    statValue: { fontSize: 18, fontWeight: 'bold', color: '#1e3a5f' },
+
+    gardenGrid: { flex: 1, position: 'relative', marginTop: 16, paddingBottom: 80, minHeight: 600 },
+    plantGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 32, paddingHorizontal: 8 },
+
+    plantSlotEmpty: { alignItems: 'center', justifyContent: 'center', width: '30%', height: 144, opacity: 0.4, margin: 4 },
+    soilSpot: { width: 64, height: 32, backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 32, marginBottom: 8, transform: [{ scaleX: 2.0 }] },
+    plantLabelEmpty: { fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 'bold', backgroundColor: 'rgba(0,0,0,0.3)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
+
+    plantSlot: { alignItems: 'center', justifyContent: 'center', width: '30%', height: 144, margin: 4, marginBottom: 16 },
+    plantContainer: { alignItems: 'center', justifyContent: 'center', position: 'relative', width: 96, height: 96 },
+    witheredPlant: { opacity: 0.6, transform: [{ scale: 0.9 }, { rotate: '-5deg' }] },
+    waterDropIcon: { position: 'absolute', top: -8, right: -8, fontSize: 24 },
+
+    plantLabel: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginTop: 4, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+    plantLabelWithered: { backgroundColor: '#d1d5db' },
+    plantLabelText: { fontSize: 12, fontWeight: 'bold', color: '#1f2937' },
+    masterText: { fontSize: 10, color: '#ca8a04', fontWeight: '800' },
+
+    emptyState: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+    emptyStateText: { color: 'white', fontWeight: 'bold', fontSize: 16, textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.4)', padding: 16, borderRadius: 12 },
+
+    fab: { position: 'absolute', bottom: 40, right: 24, width: 64, height: 64, backgroundColor: '#3b82f6', borderRadius: 32, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: 'white', elevation: 5 },
+    fabEmoji: { fontSize: 30 },
+    fabBadge: { position: 'absolute', top: -8, right: -8, backgroundColor: '#ef4444', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'white' },
+    fabBadgeText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
+
+    modalOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)' },
+    modalContent: { backgroundColor: 'rgba(255,255,255,0.95)', padding: 32, borderRadius: 40, alignItems: 'center', width: '85%', borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)' },
+    modalHeader: { alignItems: 'center', marginBottom: 24 },
+    modalEmotion: { fontSize: 20, fontWeight: '800', color: '#6b7280' },
+    modalPlantName: { fontSize: 30, fontWeight: '900', color: '#1f2937', marginTop: 4 },
+    modalBadges: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
+    badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+    badgeMaster: { backgroundColor: '#fef3c7' },
+    badgeNormal: { backgroundColor: '#dcfce7' },
+    badgeGray: { backgroundColor: '#f3f4f6' },
+    badgeText: { fontWeight: 'bold' },
+    badgeTextMaster: { color: '#a16207' },
+    badgeTextNormal: { color: '#15803d' },
+
+    modalPlantView: { height: 260, width: 260, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+
+    progressBox: { width: '100%', backgroundColor: '#f3f4f6', borderRadius: 16, padding: 16, marginBottom: 24 },
+    progressRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+    progressLabel: { color: '#6b7280', fontWeight: 'bold' },
+    progressValue: { color: '#1f2937', fontWeight: 'bold' },
+    progressBarBg: { height: 12, backgroundColor: '#e5e7eb', borderRadius: 6, overflow: 'hidden' },
+    progressBarFill: { height: '100%', borderRadius: 6 },
+    progressMessage: { color: '#6b7280', fontSize: 12, textAlign: 'center', marginTop: 8 },
+
+    closeButton: { backgroundColor: '#1f2937', width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+    closeButtonText: { fontWeight: 'bold', color: 'white', fontSize: 18 },
+});

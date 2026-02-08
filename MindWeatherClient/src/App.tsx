@@ -8,6 +8,8 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DiaryModal } from './components/DiaryModal';
 import { ComfortBoardModal } from './components/ComfortBoardModal';
+import { GardenModal } from './components/GardenModal';
+import { LettersModal } from './components/LettersModal';
 import { LoginPage } from './pages/LoginPage';
 
 function AppContent() {
@@ -15,6 +17,8 @@ function AppContent() {
   const [showInput, setShowInput] = useState(false);
   const [showDiary, setShowDiary] = useState(false);
   const [showBoard, setShowBoard] = useState(false);
+  const [showGarden, setShowGarden] = useState(false);
+  const [showLetters, setShowLetters] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Check for admin mode
@@ -50,17 +54,35 @@ function AppContent() {
         <>
           <Header />
 
-          {/* Ticker - moved to top */}
-          <div className="relative z-30">
-            <Ticker />
-          </div>
-
           <main className="relative w-full h-full">
             <MapView refreshTrigger={refreshTrigger} />
           </main>
 
-          {/* Floating Action Buttons */}
-          <div className="fixed bottom-32 right-6 z-40 flex flex-col gap-3">
+          {/* Ticker - fixed at bottom */}
+          <div className="fixed bottom-0 left-0 right-0 z-30">
+            <Ticker />
+          </div>
+
+          {/* Floating Action Buttons - above ticker */}
+          <div className="fixed bottom-20 right-6 z-40 flex flex-col gap-3">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowLetters(true)}
+              className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-full shadow-lg text-2xl"
+              title="AI 편지함"
+            >
+              📬
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowGarden(true)}
+              className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-full shadow-lg text-2xl"
+              title="감정 수호 정원"
+            >
+              🌱
+            </motion.button>
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
@@ -91,7 +113,7 @@ function AppContent() {
 
           <a
             href="/?admin=true"
-            className="fixed bottom-24 right-6 z-40 text-xs text-white/5 hover:text-white/50 transition-colors"
+            className="fixed bottom-16 right-6 z-40 text-xs text-white/5 hover:text-white/50 transition-colors"
           >
             Admin
           </a>
@@ -121,6 +143,8 @@ function AppContent() {
             )}
             {showDiary && <DiaryModal onClose={() => setShowDiary(false)} />}
             {showBoard && <ComfortBoardModal onClose={() => setShowBoard(false)} />}
+            {showGarden && <GardenModal onClose={() => setShowGarden(false)} />}
+            {showLetters && <LettersModal onClose={() => setShowLetters(false)} />}
           </AnimatePresence>
         </>
       )}

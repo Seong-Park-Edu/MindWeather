@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router'; // Correct import for expo-router v3
 import { supabase } from '../lib/supabase';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { StatusBar } from 'expo-status-bar';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
@@ -41,9 +43,9 @@ export default function LoginScreen() {
                 <Text className="text-gray-500 mt-2">Sign in to continue</Text>
             </View>
 
-            <View className="space-y-4">
+            <View className="gap-4">
                 <TextInput
-                    className="bg-gray-100 p-4 rounded-lg text-gray-800"
+                    className="bg-gray-100 p-4 rounded-xl text-gray-800"
                     placeholder="Email"
                     placeholderTextColor="#9CA3AF"
                     value={email}
@@ -52,7 +54,7 @@ export default function LoginScreen() {
                     keyboardType="email-address"
                 />
                 <TextInput
-                    className="bg-gray-100 p-4 rounded-lg text-gray-800"
+                    className="bg-gray-100 p-4 rounded-xl text-gray-800"
                     placeholder="Password"
                     placeholderTextColor="#9CA3AF"
                     value={password}
@@ -62,7 +64,7 @@ export default function LoginScreen() {
                 />
 
                 <TouchableOpacity
-                    className="bg-blue-600 p-4 rounded-lg items-center"
+                    className="bg-blue-600 p-4 rounded-xl items-center mt-2"
                     onPress={signInWithEmail}
                     disabled={loading}
                 >
@@ -73,7 +75,7 @@ export default function LoginScreen() {
                     )}
                 </TouchableOpacity>
 
-                <View className="flex-row justify-center mt-4">
+                <View className="flex-row justify-center mt-2">
                     <Text className="text-gray-500">Don't have an account? </Text>
                     <TouchableOpacity onPress={() => router.push('/signup')}>
                         <Text className="text-blue-600 font-semibold">Sign Up</Text>
@@ -82,7 +84,7 @@ export default function LoginScreen() {
 
                 {/* Guest Mode Button */}
                 <TouchableOpacity
-                    className="bg-gray-200 p-4 rounded-lg items-center mt-4"
+                    className="bg-gray-200 p-4 rounded-xl items-center"
                     onPress={() => {
                         enterGuestMode();
                         router.replace('/');

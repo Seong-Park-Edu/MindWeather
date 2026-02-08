@@ -13,6 +13,7 @@ namespace MindWeatherServer.Data
         public DbSet<EmotionLog> EmotionLogs { get; set; }
         public DbSet<ComfortMessage> ComfortMessages { get; set; }
         public DbSet<PublicComfortMessage> PublicComfortMessages { get; set; }
+        public DbSet<DailyLetter> DailyLetters { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

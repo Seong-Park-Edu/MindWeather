@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
 using MindWeatherServer.Hubs;
+using MindWeatherServer.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,7 +36,16 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();
 builder.Services.AddSignalR(); // SignalR 등록
 
-// 3. Swagger 설정
+// 4. Push Notification 서비스 등록
+builder.Services.AddHttpClient<PushNotificationService>();
+
+// 4.5 Gemini AI 서비스 등록
+builder.Services.AddHttpClient<GeminiService>();
+
+// 4.6 Daily Letter Scheduler 등록 (백그라운드 서비스)
+builder.Services.AddHostedService<DailyLetterScheduler>();
+
+// 5. Swagger 설정
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

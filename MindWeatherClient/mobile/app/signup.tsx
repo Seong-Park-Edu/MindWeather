@@ -4,6 +4,9 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTheme } from '../contexts/ThemeContext';
+import { StatusBar } from 'expo-status-bar';
+
 export default function SignupScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -38,9 +41,9 @@ export default function SignupScreen() {
                 <Text className="text-gray-500 mt-2">Sign up to get started</Text>
             </View>
 
-            <View className="space-y-4">
+            <View className="gap-4">
                 <TextInput
-                    className="bg-gray-100 p-4 rounded-lg text-gray-800"
+                    className="bg-gray-100 p-4 rounded-xl text-gray-800"
                     placeholder="Email"
                     placeholderTextColor="#9CA3AF"
                     value={email}
@@ -49,7 +52,7 @@ export default function SignupScreen() {
                     keyboardType="email-address"
                 />
                 <TextInput
-                    className="bg-gray-100 p-4 rounded-lg text-gray-800"
+                    className="bg-gray-100 p-4 rounded-xl text-gray-800"
                     placeholder="Password"
                     placeholderTextColor="#9CA3AF"
                     value={password}
@@ -59,7 +62,7 @@ export default function SignupScreen() {
                 />
 
                 <TouchableOpacity
-                    className="bg-green-600 p-4 rounded-lg items-center"
+                    className="bg-green-600 p-4 rounded-xl items-center mt-2"
                     onPress={signUpWithEmail}
                     disabled={loading}
                 >
@@ -70,7 +73,7 @@ export default function SignupScreen() {
                     )}
                 </TouchableOpacity>
 
-                <View className="flex-row justify-center mt-4">
+                <View className="flex-row justify-center mt-2">
                     <Text className="text-gray-500">Already have an account? </Text>
                     <TouchableOpacity onPress={() => router.back()}>
                         <Text className="text-blue-600 font-semibold">Login</Text>

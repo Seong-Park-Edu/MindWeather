@@ -75,9 +75,9 @@ export function StreakDisplay({ compact = false }: StreakDisplayProps) {
 
     if (compact) {
         return (
-            <View className="flex-row items-center gap-2 bg-purple-500/20 px-3 py-2 rounded-full border border-purple-500/30">
-                <Text className="text-xl">{getStreakEmoji(streak.currentStreak)}</Text>
-                <Text className="text-white font-bold text-sm">{streak.currentStreak}일</Text>
+            <View className="flex-row items-center gap-1.5">
+                <Text className="text-base">{getStreakEmoji(streak.currentStreak)}</Text>
+                <Text className="text-gray-400 text-xs">{streak.currentStreak}일 연속</Text>
             </View>
         );
     }
@@ -121,7 +121,7 @@ export function StreakDisplay({ compact = false }: StreakDisplayProps) {
             {streak.currentStreak > 0 && (
                 <View className="mt-6 pt-6 border-t border-gray-700">
                     <Text className="text-gray-400 text-xs mb-3">다음 목표</Text>
-                    <View className="space-y-2">
+                    <View className="gap-2">
                         {renderNextMilestone(streak.currentStreak)}
                     </View>
                 </View>
@@ -161,7 +161,7 @@ function renderNextMilestone(currentStreak: number): JSX.Element {
             </View>
             <View className="h-2 bg-gray-700 rounded-full overflow-hidden">
                 <View
-                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                    className="h-full bg-purple-500 rounded-full"
                     style={{ width: `${Math.min(progress, 100)}%` }}
                 />
             </View>
