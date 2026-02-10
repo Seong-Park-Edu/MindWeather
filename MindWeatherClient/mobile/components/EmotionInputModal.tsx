@@ -7,7 +7,10 @@ import {
     ScrollView,
     ActivityIndicator,
     Pressable,
+    Dimensions,
 } from 'react-native';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
 import {
     EmotionType,
     EmotionLabels,
@@ -39,12 +42,33 @@ export function EmotionInputModal({ visible, onClose, onSuccess }: EmotionInputM
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
 
+    const [canClose, setCanClose] = useState(false);
+
     // Update region when GPS address is available
     useEffect(() => {
         if (geo.address && !useManualRegion) {
             setRegion(geo.address);
         }
     }, [geo.address, useManualRegion]);
+
+    useEffect(() => {
+        if (visible) {
+            // Prevent immediate closing (ghost touches)
+            setCanClose(false);
+            const timer = setTimeout(() => {
+                setCanClose(true);
+            }, 500);
+            return () => clearTimeout(timer);
+        } else {
+            setCanClose(false);
+        }
+    }, [visible]);
+
+    const handleBackdropPress = () => {
+        if (canClose) {
+            onClose();
+        }
+    };
 
     const toggleTag = (tag: string) => {
         setSelectedTags((prev) =>
@@ -93,28 +117,22 @@ export function EmotionInputModal({ visible, onClose, onSuccess }: EmotionInputM
     const intensityButtons = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <View style={{ flex: 1 }}>
-                {/* Backdrop Layer */}
-                <Pressable
-                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }}
-                    onPress={onClose}
-                />
-
-                {/* Content Layer */}
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }} pointerEvents="box-none">
-                    <View style={{ backgroundColor: '#111827', width: '100%', maxWidth: 512, borderRadius: 16, overflow: 'hidden', maxHeight: '90%' }}>
-                        <ScrollView
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
-                            keyboardShouldPersistTaps="handled"
-                            nestedScrollEnabled={true}
-                            scrollEventThrottle={16}
-                        >
-                            <Pressable
-                                onPress={(e) => e.stopPropagation()}
-                                pointerEvents="box-none"
-                            >
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {
+            if (canClose) onClose();
+        }}>
+            <Pressable
+                style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 }}
+                onPress={handleBackdropPress}
+            >
+                <Pressable style={{ backgroundColor: '#111827', width: '100%', maxWidth: 512, borderRadius: 16, overflow: 'hidden', height: '85%' }}>
+                    <ScrollView
+                        style={{ flex: 1 }}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
+                        keyboardShouldPersistTaps="handled"
+                        nestedScrollEnabled={true}
+                        scrollEventThrottle={16}
+                    >
                                 {/* Title */}
                                 <Text className="text-2xl font-bold text-center text-purple-400 mb-6">
                                     오늘의 마음 날씨는? ☁️
@@ -281,11 +299,9 @@ export function EmotionInputModal({ visible, onClose, onSuccess }: EmotionInputM
                                         <Text className="text-white text-xl font-bold">마음이 기록되었습니다!</Text>
                                     </View>
                                 )}
-                            </Pressable>
-                        </ScrollView>
-                    </View>
-                </View>
-            </View>
+                    </ScrollView>
+                </Pressable>
+            </Pressable>
         </Modal>
     );
 }

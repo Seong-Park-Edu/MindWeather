@@ -9,7 +9,11 @@ import { getEmotionStats, getComfortStats, getEmotionsForMap, getUserStreak } fr
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme, themes } from '../contexts/ThemeContext';
 
-export function Ticker() {
+interface TickerProps {
+    onModalStateChange?: (isOpen: boolean) => void;
+}
+
+export function Ticker({ onModalStateChange }: TickerProps) {
     const { user, isGuest } = useAuth();
     const { theme } = useTheme();
     const colors = themes[theme];
@@ -21,7 +25,31 @@ export function Ticker() {
     const [longestStreak, setLongestStreak] = useState<number | null>(null);
     const [tickerIndex, setTickerIndex] = useState(0);
     const [showStatsModal, setShowStatsModal] = useState(false);
+    const [canClose, setCanClose] = useState(false); // Fix for ghost touch
     const fadeAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        onModalStateChange?.(showStatsModal);
+    }, [showStatsModal, onModalStateChange]);
+
+    useEffect(() => {
+        if (showStatsModal) {
+            setCanClose(false);
+            const timer = setTimeout(() => setCanClose(true), 500);
+            return () => clearTimeout(timer);
+        } else {
+            setCanClose(false);
+        }
+    }, [showStatsModal]);
+
+    const handleBackdropPress = () => {
+        if (canClose) {
+            console.log('Ticker Backdrop pressed, closing modal');
+            setShowStatsModal(false);
+        } else {
+            console.log('Ticker Backdrop pressed too early, ignoring');
+        }
+    };
 
     useEffect(() => {
         loadStats();
@@ -141,7 +169,9 @@ export function Ticker() {
     return (
         <>
             <TouchableOpacity
-                onPress={() => setShowStatsModal(true)}
+                onPress={() => {
+                    setShowStatsModal(true);
+                }}
                 activeOpacity={0.7}
                 style={{
                     backgroundColor: colors.bg.secondary + 'E6',
@@ -192,11 +222,13 @@ export function Ticker() {
                 visible={showStatsModal}
                 transparent
                 animationType="fade"
-                onRequestClose={() => setShowStatsModal(false)}
+                onRequestClose={() => {
+                    if (canClose) setShowStatsModal(false);
+                }}
             >
                 <Pressable
                     className="flex-1 bg-black/50 justify-center items-center px-6"
-                    onPress={() => setShowStatsModal(false)}
+                    onPress={handleBackdropPress}
                 >
                     <Pressable
                         style={{

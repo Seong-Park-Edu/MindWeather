@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const LAST_CHECKED_KEY = 'notificationLastChecked';
 
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 interface HeaderProps {
     onInboxPress?: () => void;
@@ -111,6 +111,9 @@ export function Header({ onInboxPress }: HeaderProps) {
                             )}
                         </TouchableOpacity>
                     )}
+
+                    {/* Theme Switcher */}
+                    <ThemeSwitcher compact />
 
                     {/* Login/Logout */}
                     <TouchableOpacity

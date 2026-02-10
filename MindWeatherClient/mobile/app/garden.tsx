@@ -286,63 +286,54 @@ const PlantDetailModal = ({
     }
 
     return (
-        <Modal transparent animationType="fade" visible={!!plant} onRequestClose={onClose}>
-            <View style={styles.modalOverlay}>
-                <TouchableWithoutFeedback onPress={onClose}>
-                    <View style={StyleSheet.absoluteFillObject} />
-                </TouchableWithoutFeedback>
+        <View style={styles.modalOverlayAbsolute}>
+            <TouchableWithoutFeedback onPress={onClose}>
+                <View style={styles.modalBackdrop} />
+            </TouchableWithoutFeedback>
 
-                <Animated.View entering={ZoomIn.duration(300)} style={styles.modalContent}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalEmotion}>{EmotionLabels[type]}</Text>
-                        <Text style={styles.modalPlantName}>{info.name}</Text>
-                        <View style={styles.modalBadges}>
-                            <View style={[styles.badge, level >= 6 ? styles.badgeMaster : styles.badgeNormal]}>
-                                <Text style={[styles.badgeText, level >= 6 ? styles.badgeTextMaster : styles.badgeTextNormal]}>Lv.{level}</Text>
-                            </View>
-                            <View style={[styles.badge, styles.badgeGray]}>
-                                <Text style={[styles.badgeText, { color: statusColor }]}>{status}</Text>
-                            </View>
+            <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalEmotion}>{EmotionLabels[type]}</Text>
+                    <Text style={styles.modalPlantName}>{info.name}</Text>
+                    <View style={styles.modalBadges}>
+                        <View style={[styles.badge, level >= 6 ? styles.badgeMaster : styles.badgeNormal]}>
+                            <Text style={[styles.badgeText, level >= 6 ? styles.badgeTextMaster : styles.badgeTextNormal]}>Lv.{level}</Text>
+                        </View>
+                        <View style={[styles.badge, styles.badgeGray]}>
+                            <Text style={[styles.badgeText, { color: statusColor }]}>{status}</Text>
                         </View>
                     </View>
+                </View>
 
-                    <View style={styles.modalPlantView}>
-                        <AuraEffect level={level} color={info.color} waterLevel={waterLevel} sizeMultiplier={2.5} />
-                        {waterLevel >= 80 && level >= 1 && (
-                            <View style={{ transform: [{ scale: 2 }] }}>
-                                <Sparkle delay={0} />
-                                <Sparkle delay={500} />
-                            </View>
-                        )}
-                        <Image
-                            source={source}
-                            style={{ width: 240, height: 240, opacity: (waterLevel < 30 && level > 0) ? 0.6 : 1 }}
-                            resizeMode="contain"
+                <View style={styles.modalPlantView}>
+                    <Image
+                        source={source}
+                        style={{ width: 180, height: 180 }}
+                        resizeMode="contain"
+                    />
+                </View>
+
+                <View style={styles.progressBox}>
+                    <View style={styles.progressRow}>
+                        <Text style={styles.progressLabel}>이번 달 기록</Text>
+                        <Text style={styles.progressValue}>{count}회</Text>
+                    </View>
+                    <View style={styles.progressBarBg}>
+                        <View
+                            style={[styles.progressBarFill, {
+                                width: level >= 6 ? '100%' : `${Math.min(100, (count / nextGoal) * 100)}%`,
+                                backgroundColor: info.color
+                            }]}
                         />
                     </View>
+                    <Text style={styles.progressMessage}>{message}</Text>
+                </View>
 
-                    <View style={styles.progressBox}>
-                        <View style={styles.progressRow}>
-                            <Text style={styles.progressLabel}>이번 달 기록</Text>
-                            <Text style={styles.progressValue}>{count}회</Text>
-                        </View>
-                        <View style={styles.progressBarBg}>
-                            <View
-                                style={[styles.progressBarFill, {
-                                    width: level >= 6 ? '100%' : `${Math.min(100, (count / nextGoal) * 100)}%`,
-                                    backgroundColor: info.color
-                                }]}
-                            />
-                        </View>
-                        <Text style={styles.progressMessage}>{message}</Text>
-                    </View>
-
-                    <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                        <Text style={styles.closeButtonText}>닫기</Text>
-                    </TouchableOpacity>
-                </Animated.View>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                    <Text style={styles.closeButtonText}>닫기</Text>
+                </TouchableOpacity>
             </View>
-        </Modal>
+        </View>
     );
 };
 
@@ -585,6 +576,8 @@ const styles = StyleSheet.create({
     fabBadge: { position: 'absolute', top: -8, right: -8, backgroundColor: '#ef4444', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'white' },
     fabBadgeText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
 
+    modalOverlayAbsolute: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, alignItems: 'center', justifyContent: 'center' },
+    modalBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)' },
     modalOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)' },
     modalContent: { backgroundColor: 'rgba(255,255,255,0.95)', padding: 32, borderRadius: 40, alignItems: 'center', width: '85%', borderWidth: 4, borderColor: 'rgba(255,255,255,0.5)' },
     modalHeader: { alignItems: 'center', marginBottom: 24 },

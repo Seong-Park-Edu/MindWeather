@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, BackHandler } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as expoRouter from 'expo-router';
 // import ReactNativeZoomableView from 'react-native-zoomable-view'; // Temporarily disabled
 
@@ -8,11 +8,12 @@ import * as expoRouter from 'expo-router';
 import { Header } from '../components/Header';
 import { Ticker } from '../components/Ticker';
 import KoreaMap, { normalizeRegionName } from '../components/KoreaMap';
+import { MailModal } from '../components/MailModal';
 import { ComfortModal } from '../components/ComfortModal';
+
 import { InboxModal } from '../components/InboxModal';
 import { EmotionInputModal } from '../components/EmotionInputModal';
 import { OnboardingTutorial } from '../components/OnboardingTutorial';
-import { ThemeSwitcher } from '../components/ThemeSwitcher';
 
 // Services & Types
 import { getEmotionsForMap } from '../services/api';
@@ -37,20 +38,21 @@ interface RegionCluster {
 }
 
 export default function MainScreen() {
-    const { user, loading: authLoading, isGuest } = useAuth();
+    const { user, isGuest } = useAuth();
     const { theme } = useTheme();
     const colors = themes[theme];
     const router = expoRouter.useRouter();
+    const insets = useSafeAreaInsets();
 
     // Data state
     const [emotions, setEmotions] = useState<EmotionResponse[]>([]);
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
 
     // Modal states
     const [showEmotionInput, setShowEmotionInput] = useState(false);
     const [showComfortModal, setShowComfortModal] = useState(false);
     const [showInbox, setShowInbox] = useState(false);
+    const [showMail, setShowMail] = useState(false);
     const [selectedCluster, setSelectedCluster] = useState<RegionCluster | null>(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -67,7 +69,6 @@ export default function MainScreen() {
             console.error('Failed to fetch map data', error);
         } finally {
             setLoading(false);
-            setRefreshing(false);
         }
     }, []);
 
@@ -108,14 +109,8 @@ export default function MainScreen() {
         return () => backHandler.remove();
     }, [selectedRegion]);
 
-    const onRefresh = () => {
-        setRefreshing(true);
-        fetchData();
-    };
-
-    // Compute markers and colors from emotions
-    const { regionColors, markers } = useMemo(() => {
-        const colors: Record<string, string> = {};
+    // Optimized: Pre-calculate maps ensuring O(N) only runs when data changes
+    const processedData = useMemo(() => {
         const provinceMap = new Map<string, { emotion: EmotionType; count: number }>();
         const districtMap = new Map<string, { emotion: EmotionType; count: number; province: string }>();
 
@@ -123,11 +118,6 @@ export default function MainScreen() {
             const parts = item.region.trim().split(' ');
             const rawProvince = parts[0];
             const normalizedProvince = normalizeRegionName(rawProvince);
-
-            // National Mode Coloring (Province Level)
-            if (!selectedRegion && !colors[normalizedProvince]) {
-                colors[normalizedProvince] = EmotionColors[item.emotion];
-            }
 
             // Province Aggregation
             const pExisting = provinceMap.get(normalizedProvince);
@@ -139,7 +129,6 @@ export default function MainScreen() {
 
             // District Aggregation
             if (parts.length > 1) {
-                // Filter out 'dong', 'eup', 'myeon' to get the administrative district name.
                 const districtParts = parts.slice(1).filter(p => {
                     const lastChar = p.slice(-1);
                     return !['동', '읍', '면', '가'].includes(lastChar) &&
@@ -147,32 +136,27 @@ export default function MainScreen() {
                         !p.toLowerCase().endsWith('eup') &&
                         !p.toLowerCase().endsWith('myeon');
                 });
-
                 const districtName = districtParts.join(' ');
 
-                // Color Logic for District Mode
-                if (selectedRegion && normalizedProvince === selectedRegion && districtName) {
-                    const normalizedDistrict = normalizeRegionName(districtName);
-                    // Use the emotion of this specific district item
-                    if (!colors[normalizedDistrict]) {
-                        colors[normalizedDistrict] = EmotionColors[item.emotion];
+                if (districtName) {
+                    const fullRegionKey = `${normalizedProvince} ${districtName}`;
+                    const dExisting = districtMap.get(fullRegionKey);
+                    if (dExisting) {
+                        dExisting.count += 1;
+                    } else {
+                        districtMap.set(fullRegionKey, { emotion: item.emotion, count: 1, province: normalizedProvince });
                     }
-                }
-
-                const fullRegionKey = `${normalizedProvince} ${districtName}`;
-                const dExisting = districtMap.get(fullRegionKey);
-                if (dExisting) {
-                    dExisting.count += 1;
-                } else {
-                    districtMap.set(fullRegionKey, { emotion: item.emotion, count: 1, province: normalizedProvince });
                 }
             }
         });
 
-        const markerData: MarkerData[] = [];
+        // Generate Static Markers & Colors
+        const allProvinceColors: Record<string, string> = {};
+        const allMarkers: MarkerData[] = [];
 
         provinceMap.forEach((value, key) => {
-            markerData.push({
+            allProvinceColors[key] = EmotionColors[value.emotion];
+            allMarkers.push({
                 region: key,
                 emotion: value.emotion,
                 count: value.count,
@@ -182,7 +166,7 @@ export default function MainScreen() {
         });
 
         districtMap.forEach((value, key) => {
-            markerData.push({
+            allMarkers.push({
                 region: key,
                 emotion: value.emotion,
                 count: value.count,
@@ -191,14 +175,43 @@ export default function MainScreen() {
             });
         });
 
-        return { regionColors: colors, markers: markerData };
-    }, [emotions, selectedRegion]);
+        return { allProvinceColors, allMarkers };
+    }, [emotions]);
 
-    // Handle marker click (Keep primarily for province markers or fallback)
+    // Fast View Computation
+    const { regionColors, markers } = useMemo(() => {
+        return {
+            regionColors: !selectedRegion ? processedData.allProvinceColors : {}, // No district colors as requested
+            markers: processedData.allMarkers
+        };
+    }, [processedData, selectedRegion]);
+
+    // Handle marker click
     const handleMarkerClick = (marker: MarkerData) => {
         if (marker.type === 'province') {
             setSelectedRegion(marker.region);
             return;
+        }
+
+        if (marker.type === 'district') {
+            const markerDistrictName = marker.region.split(' ')[1] || marker.region;
+            const districtEmotions = emotions.filter(e => {
+                if (!e.region.startsWith(selectedRegion || '')) return false;
+                return e.region.includes(markerDistrictName);
+            });
+
+            if (districtEmotions.length > 0) {
+                const totalIntensity = districtEmotions.reduce((sum, e) => sum + e.intensity, 0);
+                const avgIntensity = Math.round(totalIntensity / districtEmotions.length);
+                const cluster: RegionCluster = {
+                    region: marker.region,
+                    emotions: districtEmotions,
+                    dominantEmotion: districtEmotions[0].emotion,
+                    avgIntensity,
+                };
+                setSelectedCluster(cluster);
+                setShowComfortModal(true);
+            }
         }
     };
 
@@ -219,46 +232,16 @@ export default function MainScreen() {
             ]
         );
     };
-
-    // Auth loading state
-    if (authLoading) {
-        return (
-            <View style={{ flex: 1, backgroundColor: colors.bg.primary }} className="items-center justify-center">
-                <ActivityIndicator size="large" color={colors.accent.secondary} />
-            </View>
-        );
-    }
-
-    // Not logged in - redirect to login
-    if (!user) {
-        return (
-            <View style={{ flex: 1, backgroundColor: colors.bg.primary }} className="items-center justify-center p-6">
-                <Text className="text-4xl mb-4">🌤️</Text>
-                <Text style={{ color: colors.text.primary }} className="text-2xl font-bold mb-2">Mind Weather</Text>
-                <Text style={{ color: colors.text.secondary }} className="text-center mb-8">마음의 날씨를 나누고, 서로를 위로해요</Text>
-                <TouchableOpacity
-                    onPress={() => router.push('/login')}
-                    style={{ backgroundColor: colors.accent.primary }}
-                    className="px-8 py-4 rounded-xl"
-                >
-                    <Text className="text-white font-bold text-lg">시작하기</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
-
-    const handleScroll = (event: any) => {
-        const zoom = event.nativeEvent.zoomScale || 1;
-        setCurrentZoom(zoom);
-    };
+    // ...
 
     return (
         <View style={{ flex: 1, backgroundColor: colors.bg.primary }}>
+            {/* ... Safe Area ... */}
             <SafeAreaView edges={['top']} className="flex-1">
                 {/* Header */}
                 <Header onInboxPress={() => setShowInbox(true)} />
 
-                {/* Ticker - now at top below header */}
+                {/* Ticker */}
                 <Ticker />
 
                 {/* Main Map Area */}
@@ -273,18 +256,13 @@ export default function MainScreen() {
                                 regionColors={regionColors}
                                 markers={markers}
                                 onMarkerClick={handleMarkerClick}
-                                onRegionClick={(region, coords) => {
+                                onRegionClick={(region) => {
                                     if (selectedRegion) {
-                                        // District Clicked (Choropleth Interaction)
                                         const clickedDistrictName = region;
-
-                                        // Find all emotions for this district in the selected province
                                         const targetEmotions = emotions.filter(e => {
                                             const parts = e.region.trim().split(' ');
                                             const p = normalizeRegionName(parts[0]);
                                             if (p !== selectedRegion) return false;
-
-                                            // Extract district part using same logic
                                             const districtParts = parts.slice(1).filter(p => {
                                                 const lastChar = p.slice(-1);
                                                 return !['동', '읍', '면', '가'].includes(lastChar) &&
@@ -293,26 +271,22 @@ export default function MainScreen() {
                                                     !p.toLowerCase().endsWith('myeon');
                                             });
                                             const d = districtParts.join(' ');
-
                                             return normalizeRegionName(d) === clickedDistrictName;
                                         });
 
                                         if (targetEmotions.length > 0) {
                                             const totalIntensity = targetEmotions.reduce((sum, e) => sum + e.intensity, 0);
                                             const avgIntensity = Math.round(totalIntensity / targetEmotions.length);
-                                            const domEmotion = targetEmotions[0].emotion;
-
                                             const cluster: RegionCluster = {
                                                 region: `${selectedRegion} ${clickedDistrictName}`,
                                                 emotions: targetEmotions,
-                                                dominantEmotion: domEmotion,
+                                                dominantEmotion: targetEmotions[0].emotion,
                                                 avgIntensity,
                                             };
                                             setSelectedCluster(cluster);
                                             setShowComfortModal(true);
                                         }
                                     } else {
-                                        // National Mode: Zoom to Province
                                         setSelectedRegion(region);
                                     }
                                 }}
@@ -323,64 +297,72 @@ export default function MainScreen() {
                     </View>
                 </View>
 
-                {/* Floating Action Buttons */}
-                <View style={{ position: 'absolute', bottom: 112, right: 16, zIndex: 999, elevation: 10 }} className="gap-3 items-end">
-                    {/* Theme Switcher FAB */}
-                    <View>
-                        <ThemeSwitcher />
-                    </View>
-
-                    {/* Garden FAB */}
-                    <TouchableOpacity
-                        onPress={() => {
-                            if (isGuest) {
-                                showGuestPrompt('감정 정원');
-                            } else {
-                                router.push('/garden');
-                            }
-                        }}
-                        className="w-14 h-14 bg-green-600/80 border border-green-500 rounded-full items-center justify-center"
-                    >
-                        <Text className="text-2xl">🌱</Text>
-                    </TouchableOpacity>
-
-                    {/* Diary FAB */}
-                    <TouchableOpacity
-                        onPress={() => {
-                            if (isGuest) {
-                                showGuestPrompt('감정 다이어리');
-                            } else {
-                                router.push('/diary');
-                            }
-                        }}
-                        className="w-14 h-14 bg-gray-800/80 border border-gray-700 rounded-full items-center justify-center"
-                    >
-                        <Text className="text-2xl">📅</Text>
-                    </TouchableOpacity>
-
-                    {/* Board FAB */}
-                    <TouchableOpacity
-                        onPress={() => router.push('/board')}
-                        className="w-14 h-14 bg-gray-800/80 border border-gray-700 rounded-full items-center justify-center"
-                    >
-                        <Text className="text-2xl">💌</Text>
-                    </TouchableOpacity>
-
-                    {/* Emotion Input FAB */}
-                    <TouchableOpacity
-                        onPress={() => {
-                            if (isGuest) {
-                                showGuestPrompt('감정 기록');
-                            } else {
-                                setShowEmotionInput(true);
-                            }
-                        }}
-                        className="w-14 h-14 bg-purple-600 rounded-full items-center justify-center shadow-lg"
-                    >
-                        <Text className="text-2xl">✏️</Text>
-                    </TouchableOpacity>
-                </View>
             </SafeAreaView>
+
+            {/* Bottom Action Bar */}
+            <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-around',
+                paddingTop: 8,
+                paddingBottom: Math.max(insets.bottom, 12),
+                backgroundColor: colors.bg.secondary,
+                borderTopWidth: 1,
+                borderTopColor: colors.border,
+            }}>
+                <TouchableOpacity
+                    onPress={() => isGuest ? showGuestPrompt('감정 정원') : router.push('/garden')}
+                    style={{ alignItems: 'center', paddingVertical: 4, minWidth: 56 }}
+                >
+                    <Text style={{ fontSize: 22 }}>🌱</Text>
+                    <Text style={{ color: colors.text.secondary, fontSize: 10, marginTop: 2 }}>정원</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => isGuest ? showGuestPrompt('감정 다이어리') : router.push('/diary')}
+                    style={{ alignItems: 'center', paddingVertical: 4, minWidth: 56 }}
+                >
+                    <Text style={{ fontSize: 22 }}>📅</Text>
+                    <Text style={{ color: colors.text.secondary, fontSize: 10, marginTop: 2 }}>다이어리</Text>
+                </TouchableOpacity>
+
+                {/* Center - Emotion Input (Primary Action) */}
+                <TouchableOpacity
+                    onPress={() => isGuest ? showGuestPrompt('감정 기록') : setShowEmotionInput(true)}
+                    style={{
+                        backgroundColor: '#7C3AED',
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginTop: -20,
+                        elevation: 6,
+                        shadowColor: '#7C3AED',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 6,
+                    }}
+                >
+                    <Text style={{ fontSize: 26 }}>✏️</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => router.push('/board')}
+                    style={{ alignItems: 'center', paddingVertical: 4, minWidth: 56 }}
+                >
+                    <Text style={{ fontSize: 22 }}>💌</Text>
+                    <Text style={{ color: colors.text.secondary, fontSize: 10, marginTop: 2 }}>게시판</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => isGuest ? showGuestPrompt('편지함') : setShowMail(true)}
+                    style={{ alignItems: 'center', paddingVertical: 4, minWidth: 56 }}
+                >
+                    <Text style={{ fontSize: 22 }}>📩</Text>
+                    <Text style={{ color: colors.text.secondary, fontSize: 10, marginTop: 2 }}>편지</Text>
+                </TouchableOpacity>
+            </View>
 
             {/* Modals */}
             <EmotionInputModal
@@ -401,6 +383,11 @@ export default function MainScreen() {
             <InboxModal
                 visible={showInbox}
                 onClose={() => setShowInbox(false)}
+            />
+
+            <MailModal
+                visible={showMail}
+                onClose={() => setShowMail(false)}
             />
 
             <OnboardingTutorial

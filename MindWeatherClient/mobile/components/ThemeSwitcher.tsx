@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Pressable, Dimensions } from 'react-native';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
 import { useTheme, ThemeName } from '../contexts/ThemeContext';
 
 const themeInfo = {
@@ -9,7 +11,11 @@ const themeInfo = {
     ocean: { icon: '🌊', name: '오션', description: '바다 테마' },
 };
 
-export function ThemeSwitcher() {
+interface ThemeSwitcherProps {
+    compact?: boolean;
+}
+
+export function ThemeSwitcher({ compact = false }: ThemeSwitcherProps) {
     const { theme, setTheme } = useTheme();
     const [showModal, setShowModal] = useState(false);
 
@@ -20,12 +26,12 @@ export function ThemeSwitcher() {
 
     return (
         <>
-            {/* Theme FAB */}
             <TouchableOpacity
                 onPress={() => setShowModal(true)}
-                className="w-14 h-14 bg-gray-800/80 border border-gray-700 rounded-full items-center justify-center"
+                style={compact ? { padding: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)' } : undefined}
+                className={compact ? undefined : "w-14 h-14 bg-gray-800/80 border border-gray-700 rounded-full items-center justify-center"}
             >
-                <Text className="text-2xl">{themeInfo[theme].icon}</Text>
+                <Text style={{ fontSize: compact ? 18 : 24 }}>{themeInfo[theme].icon}</Text>
             </TouchableOpacity>
 
             {/* Theme Selection Modal */}
@@ -33,16 +39,17 @@ export function ThemeSwitcher() {
                 visible={showModal}
                 transparent
                 animationType="fade"
-                onRequestClose={() => setShowModal(false)}
+                onRequestClose={() => {
+                    setShowModal(false);
+                }}
             >
-                <Pressable
-                    className="flex-1 bg-black/50 justify-center items-center px-6"
-                    onPress={() => setShowModal(false)}
-                >
+                <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
                     <Pressable
-                        className="bg-gray-800 rounded-3xl p-6 w-full max-w-md border border-gray-700"
-                        onPress={(e) => e.stopPropagation()}
-                    >
+                        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
+                        onPress={() => setShowModal(false)}
+                    />
+                    <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, justifyContent: 'center', alignItems: 'center', padding: 24 }} pointerEvents="box-none">
+                    <View style={{ backgroundColor: '#1f2937', borderRadius: 24, padding: 24, width: '100%', maxWidth: 448, borderWidth: 1, borderColor: '#374151' }}>
                         {/* Header */}
                         <View className="items-center mb-6">
                             <Text className="text-2xl mb-2">🎨</Text>
@@ -61,8 +68,8 @@ export function ThemeSwitcher() {
                                         key={themeName}
                                         onPress={() => handleThemeSelect(themeName)}
                                         className={`rounded-2xl p-4 border-2 ${isSelected
-                                                ? 'bg-purple-500/20 border-purple-500'
-                                                : 'bg-gray-700/50 border-gray-600'
+                                            ? 'bg-purple-500/20 border-purple-500'
+                                            : 'bg-gray-700/50 border-gray-600'
                                             }`}
                                     >
                                         <View className="flex-row items-center gap-3">
@@ -89,8 +96,9 @@ export function ThemeSwitcher() {
                         >
                             <Text className="text-white text-center font-medium">닫기</Text>
                         </TouchableOpacity>
-                    </Pressable>
-                </Pressable>
+                    </View>
+                    </View>
+                </View>
             </Modal>
         </>
     );

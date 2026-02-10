@@ -8,8 +8,11 @@ import {
     ActivityIndicator,
     Pressable,
     Alert,
-    Switch
+    Switch,
+    Dimensions,
 } from 'react-native';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { getReceivedMessages, getSentMessages, thankMessage } from '../services/api';
@@ -27,6 +30,25 @@ export function InboxModal({ visible, onClose }: InboxModalProps) {
     const [loading, setLoading] = useState(true);
     const [thankingId, setThankingId] = useState<number | null>(null);
     const [showOnlyToday, setShowOnlyToday] = useState(false);
+    const [canClose, setCanClose] = useState(false); // Fix for ghost touch
+
+    useEffect(() => {
+        if (visible) {
+            setCanClose(false);
+            const timer = setTimeout(() => {
+                setCanClose(true);
+            }, 500);
+            return () => clearTimeout(timer);
+        } else {
+            setCanClose(false);
+        }
+    }, [visible]);
+
+    const handleBackdropPress = () => {
+        if (canClose) {
+            onClose();
+        }
+    };
 
     useEffect(() => {
         if (!user || !visible) return;
@@ -94,16 +116,15 @@ export function InboxModal({ visible, onClose }: InboxModalProps) {
             visible={visible}
             transparent
             animationType="fade"
-            onRequestClose={onClose}
+            onRequestClose={() => {
+                if (canClose) onClose();
+            }}
         >
             <Pressable
-                className="flex-1 bg-black/60 justify-center items-center p-4"
-                onPress={onClose}
+                style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 }}
+                onPress={handleBackdropPress}
             >
-                <Pressable
-                    className="bg-gray-900 w-full max-w-lg rounded-2xl h-[80%] border border-gray-700"
-                    onPress={e => e.stopPropagation()}
-                >
+                <Pressable style={{ backgroundColor: '#111827', width: '100%', maxWidth: 512, borderRadius: 16, height: '80%', borderWidth: 1, borderColor: '#374151' }}>
                     {/* Header */}
                     <View className="flex-row justify-between items-center p-5 border-b border-gray-800">
                         <Text className="text-xl font-bold text-white">📬 마음 우체통</Text>
@@ -117,8 +138,8 @@ export function InboxModal({ visible, onClose }: InboxModalProps) {
                         <TouchableOpacity
                             onPress={() => setActiveTab('received')}
                             className={`flex-1 py-3 rounded-xl items-center ${activeTab === 'received'
-                                    ? 'bg-purple-600'
-                                    : 'bg-gray-800'
+                                ? 'bg-purple-600'
+                                : 'bg-gray-800'
                                 }`}
                         >
                             <Text className={activeTab === 'received' ? 'text-white font-bold' : 'text-gray-400'}>
@@ -128,8 +149,8 @@ export function InboxModal({ visible, onClose }: InboxModalProps) {
                         <TouchableOpacity
                             onPress={() => setActiveTab('sent')}
                             className={`flex-1 py-3 rounded-xl items-center ${activeTab === 'sent'
-                                    ? 'bg-blue-600'
-                                    : 'bg-gray-800'
+                                ? 'bg-blue-600'
+                                : 'bg-gray-800'
                                 }`}
                         >
                             <Text className={activeTab === 'sent' ? 'text-white font-bold' : 'text-gray-400'}>

@@ -320,3 +320,34 @@ export async function getWeeklyInsights(userId: string): Promise<WeeklyInsights>
         throw error;
     }
 }
+
+// Letter Types
+export interface Letter {
+    id: number;
+    content: string;
+    generatedAt: string;
+    isRead: boolean;
+    readAt: string | null;
+    analyzedFrom: string;
+    analyzedTo: string;
+}
+
+// Letter API
+export const getLetters = async (userId: string, limit: number = 30): Promise<Letter[]> => {
+    const response = await api.get(`/Letters/${userId}?limit=${limit}`);
+    return response.data;
+};
+
+export const getLetterDetail = async (letterId: number): Promise<Letter> => {
+    const response = await api.get(`/Letters/detail/${letterId}`);
+    return response.data;
+};
+
+export const markLetterAsRead = async (letterId: number, userId: string): Promise<void> => {
+    await api.put(`/Letters/${letterId}/read?userId=${userId}`);
+};
+
+export const getUnreadLetterCount = async (userId: string): Promise<{ unreadCount: number }> => {
+    const response = await api.get(`/Letters/${userId}/unread-count`);
+    return response.data;
+};

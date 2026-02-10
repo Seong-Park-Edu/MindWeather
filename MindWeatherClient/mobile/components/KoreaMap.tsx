@@ -141,7 +141,7 @@ const AnimatedMarker = ({ marker, markerScale, onMarkerClick, accentColor }: { m
     return (
         <Animated.View style={animatedStyle}>
             <TouchableOpacity onPress={() => onMarkerClick?.(marker)} activeOpacity={0.7} style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ fontSize: 24 }}>{marker.emoji}</Text>
+                <Text style={{ fontSize: 24, opacity: marker.type === 'district' ? 0.6 : 1 }}>{marker.emoji}</Text>
                 {marker.count > 1 && (
                     <View style={{ position: 'absolute', top: 0, right: 0, backgroundColor: accentColor, borderRadius: 10, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 }}>
                         <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>{marker.count}</Text>
@@ -152,63 +152,68 @@ const AnimatedMarker = ({ marker, markerScale, onMarkerClick, accentColor }: { m
     );
 };
 
-export default function KoreaMap({
+const KoreaMap = ({
     onRegionClick,
     onMarkerClick,
     regionColors = {},
     markers = [],
     selectedRegion = null,
     currentZoom = 1
-}: KoreaMapProps) {
+}: KoreaMapProps) => {
     const { theme } = useTheme();
     const colors = themes[theme];
-    const [geography, setGeography] = useState<any[]>([]);
+
+    // Separate states for datasets to allow synchronous switching
+    const [provinceGeo, setProvinceGeo] = useState<any[]>([]);
+    const [municipalityGeo, setMunicipalityGeo] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [currentGeoUrl, setCurrentGeoUrl] = useState('');
-    const geoCache = useRef<Record<string, any>>({});
 
     const { width } = Dimensions.get('window');
     const height = width * 1.5;
 
+    // Load BOTH datasets on mount
     useEffect(() => {
-        const targetGeoUrl = selectedRegion ? GEO_URL_MUNICIPALITY : GEO_URL_PROVINCE;
+        const loadData = async () => {
+            try {
+                // Load Provinces
+                const provRes = await fetch(GEO_URL_PROVINCE);
+                const provTopo = await provRes.json();
+                const provFeatures = (topojson.feature(provTopo, provTopo.objects['skorea_provinces_2018_geo'] as any) as any).features;
+                setProvinceGeo(provFeatures);
 
-        if (targetGeoUrl === currentGeoUrl && geography.length > 0) return;
+                // Load Municipalities
+                const muniRes = await fetch(GEO_URL_MUNICIPALITY);
+                const muniTopo = await muniRes.json();
+                const muniFeatures = (topojson.feature(muniTopo, muniTopo.objects['skorea_municipalities_2018_geo'] as any) as any).features;
+                setMunicipalityGeo(muniFeatures);
+            } catch (error) {
+                console.error('[KoreaMap] Data loading error:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-        setCurrentGeoUrl(targetGeoUrl);
+        loadData();
+    }, []);
 
-        if (geoCache.current[targetGeoUrl]) {
-            setGeography(geoCache.current[targetGeoUrl]);
-            setLoading(false);
-        } else {
-            setLoading(true);
-            fetch(targetGeoUrl)
-                .then(response => response.json())
-                .then(topology => {
-                    const objectName = targetGeoUrl === GEO_URL_PROVINCE
-                        ? 'skorea_provinces_2018_geo'
-                        : 'skorea_municipalities_2018_geo';
-
-                    const geojson = topojson.feature(topology, topology.objects[objectName] as any);
-                    const features = (geojson as any).features;
-                    geoCache.current[targetGeoUrl] = features;
-                    setGeography(features);
-                })
-                .catch(error => console.error('[KoreaMap] Data error:', error))
-                .finally(() => setLoading(false));
-        }
-    }, [selectedRegion]);
-
+    // Synchronously derive the correct features to render
     const filteredGeography = useMemo(() => {
-        if (!selectedRegion) return geography;
-        const regionCode = PROVINCE_CODES[selectedRegion];
-        if (!regionCode) return geography;
+        if (loading) return [];
 
-        return geography.filter(geo => {
-            const code = geo.properties.code || '';
-            return code.startsWith(regionCode);
-        });
-    }, [geography, selectedRegion]);
+        if (selectedRegion) {
+            // Detailed View: Filter Municipalities by Selected Province
+            const regionCode = PROVINCE_CODES[selectedRegion];
+            if (!regionCode) return municipalityGeo; // Fallback
+
+            return municipalityGeo.filter(geo => {
+                const code = geo.properties.code || '';
+                return code.startsWith(regionCode);
+            });
+        } else {
+            // Macro View: Show All Provinces
+            return provinceGeo;
+        }
+    }, [selectedRegion, provinceGeo, municipalityGeo, loading]);
 
     const featureGroup = useMemo(() => {
         return { type: 'FeatureCollection', features: filteredGeography } as any;
@@ -241,28 +246,48 @@ export default function KoreaMap({
             if (!selectedRegion) {
                 return m.type === 'province' || !m.type;
             } else {
-                // If a region is selected (District View), we hide markers 
-                // because we are using Choropleth (fill color) + Click interaction.
-                return false;
+                return m.type === 'district' && m.provinceName === selectedRegion;
             }
         }).map(marker => {
-            const parts = marker.region.split(' ');
-            const province = parts[0];
-            let coords = RegionCoordinates[marker.region] || RegionCoordinates[province];
-            if (!coords) return null;
+            // Try to find accurate centroid from geometry first
+            let finalCoords: [number, number] | null = null;
 
-            let finalCoords: [number, number] = coords;
-            if (parts.length > 1) {
-                const hash = marker.region.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-                const offsetLng = ((hash % 100) - 50) / 100 * 0.1;
-                const offsetLat = ((hash % 73) - 36) / 100 * 0.1;
-                finalCoords = [coords[0] + offsetLng, coords[1] + offsetLat];
+            if (selectedRegion && marker.type === 'district') {
+                // Find matching feature in filteredGeography
+                const districtName = marker.region.split(' ')[1] || marker.region; // "서울 종로구" -> "종로구"
+                const normalizedDistrict = normalizeRegionName(districtName);
+
+                const matchedGeo = filteredGeography.find(geo => {
+                    const props = geo.properties || {};
+                    const name = props.name || props.name_eng || props.name_kor || '';
+                    return normalizeRegionName(name) === normalizedDistrict;
+                });
+
+                if (matchedGeo) {
+                    finalCoords = d3.geoCentroid(matchedGeo);
+                }
+            }
+
+            // Fallback to static coordinates or offset
+            if (!finalCoords) {
+                const parts = marker.region.split(' ');
+                const province = parts[0];
+                let coords = RegionCoordinates[marker.region] || RegionCoordinates[province];
+                if (!coords) return null;
+
+                finalCoords = coords;
+                if (parts.length > 1) {
+                    const hash = marker.region.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+                    const offsetLng = ((hash % 100) - 50) / 100 * 0.1;
+                    const offsetLat = ((hash % 73) - 36) / 100 * 0.1;
+                    finalCoords = [coords[0] + offsetLng, coords[1] + offsetLat];
+                }
             }
 
             const [x, y] = projection(finalCoords) || [0, 0];
             return { ...marker, x, y, emoji: EmotionIcons[marker.emotion] || '😐' };
         }).filter(Boolean) as any[];
-    }, [markers, projection, selectedRegion]);
+    }, [markers, projection, selectedRegion, filteredGeography]);
 
     const regionCentroids = useMemo(() => {
         return filteredGeography.map(geo => {
@@ -344,4 +369,6 @@ export default function KoreaMap({
             )}
         </View>
     );
-}
+};
+
+export default React.memo(KoreaMap);

@@ -9,3 +9,8 @@ build/
 *.lock.json
 .DS_Store
 .env
+
+# Secrets - never commit these
+appsettings.Development.json
+appsettings.Local.json
+google-services.json

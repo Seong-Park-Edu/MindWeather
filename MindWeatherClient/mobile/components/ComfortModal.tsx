@@ -9,7 +9,10 @@ import {
     ActivityIndicator,
     Pressable,
     Alert,
+    Dimensions,
 } from 'react-native';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
 import {
     EmotionType,
     EmotionLabels,
@@ -106,14 +109,13 @@ export function ComfortModal({ visible, cluster, onClose }: ComfortModalProps) {
             animationType="fade"
             onRequestClose={handleClose}
         >
-            <Pressable
-                className="flex-1 bg-black/60 justify-center items-center p-4"
-                onPress={handleClose}
-            >
+            <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
                 <Pressable
-                    className="bg-gray-900 w-full max-w-md rounded-3xl p-6 border border-gray-700"
-                    onPress={e => e.stopPropagation()}
-                >
+                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)' }}
+                    onPress={handleClose}
+                />
+                <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, justifyContent: 'center', alignItems: 'center', padding: 16 }} pointerEvents="box-none">
+                <View style={{ backgroundColor: '#111827', width: '100%', maxWidth: 448, borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#374151' }}>
                     {/* Step 1: Intro */}
                     {step === 'intro' && (
                         <View className="items-center gap-4">
@@ -257,8 +259,9 @@ export function ComfortModal({ visible, cluster, onClose }: ComfortModalProps) {
                             </Text>
                         </View>
                     )}
-                </Pressable>
-            </Pressable>
+                </View>
+                </View>
+            </View>
         </Modal>
     );
 }
