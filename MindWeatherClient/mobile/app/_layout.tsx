@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../contexts/AuthContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
+
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
@@ -22,6 +23,7 @@ export default function RootLayout() {
                             <Stack.Screen name="board" />
                             <Stack.Screen name="garden" />
                             <Stack.Screen name="letters" />
+                            <Stack.Screen name="modal" options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }} />
                         </Stack>
                         <StatusBar style="light" />
                     </AuthProvider>

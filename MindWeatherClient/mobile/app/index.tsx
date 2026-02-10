@@ -8,11 +8,6 @@ import * as expoRouter from 'expo-router';
 import { Header } from '../components/Header';
 import { Ticker } from '../components/Ticker';
 import KoreaMap, { normalizeRegionName } from '../components/KoreaMap';
-import { MailModal } from '../components/MailModal';
-import { ComfortModal } from '../components/ComfortModal';
-
-import { InboxModal } from '../components/InboxModal';
-import { EmotionInputModal } from '../components/EmotionInputModal';
 import { OnboardingTutorial } from '../components/OnboardingTutorial';
 
 // Services & Types
@@ -20,6 +15,8 @@ import { getEmotionsForMap } from '../services/api';
 import { EmotionResponse, EmotionType, EmotionColors } from '../types/emotion';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme, themes } from '../contexts/ThemeContext';
+// import { useModal } from '../contexts/ModalContext'; // Removed
+import { useFocusEffect } from 'expo-router';
 import { hasCompletedOnboarding, setOnboardingCompleted } from '../utils/onboarding';
 
 interface MarkerData {
@@ -43,16 +40,13 @@ export default function MainScreen() {
     const colors = themes[theme];
     const router = expoRouter.useRouter();
     const insets = useSafeAreaInsets();
+    // const { openModal } = useModal(); // Removed
 
     // Data state
     const [emotions, setEmotions] = useState<EmotionResponse[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Modal states
-    const [showEmotionInput, setShowEmotionInput] = useState(false);
-    const [showComfortModal, setShowComfortModal] = useState(false);
-    const [showInbox, setShowInbox] = useState(false);
-    const [showMail, setShowMail] = useState(false);
     const [selectedCluster, setSelectedCluster] = useState<RegionCluster | null>(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -72,11 +66,13 @@ export default function MainScreen() {
         }
     }, []);
 
-    useEffect(() => {
-        if (user) {
-            fetchData();
-        }
-    }, [user, fetchData]);
+    useFocusEffect(
+        useCallback(() => {
+            if (user) {
+                fetchData();
+            }
+        }, [user, fetchData])
+    );
 
     // Check onboarding status on mount
     useEffect(() => {
@@ -210,15 +206,16 @@ export default function MainScreen() {
                     avgIntensity,
                 };
                 setSelectedCluster(cluster);
-                setShowComfortModal(true);
+                setSelectedCluster(cluster);
+                router.push({
+                    pathname: '/modal/comfort',
+                    params: { cluster: JSON.stringify(cluster) }
+                });
             }
         }
     };
 
-    // Handle emotion submit success
-    const handleEmotionSuccess = () => {
-        fetchData(); // Refresh map
-    };
+
 
     // Show login prompt for guest users
     const showGuestPrompt = (feature: string) => {
@@ -239,7 +236,7 @@ export default function MainScreen() {
             {/* ... Safe Area ... */}
             <SafeAreaView edges={['top']} className="flex-1">
                 {/* Header */}
-                <Header onInboxPress={() => setShowInbox(true)} />
+                <Header onInboxPress={() => router.push('/modal/inbox')} />
 
                 {/* Ticker */}
                 <Ticker />
@@ -284,7 +281,10 @@ export default function MainScreen() {
                                                 avgIntensity,
                                             };
                                             setSelectedCluster(cluster);
-                                            setShowComfortModal(true);
+                                            router.push({
+                                                pathname: '/modal/comfort',
+                                                params: { cluster: JSON.stringify(cluster) }
+                                            });
                                         }
                                     } else {
                                         setSelectedRegion(region);
@@ -328,7 +328,7 @@ export default function MainScreen() {
 
                 {/* Center - Emotion Input (Primary Action) */}
                 <TouchableOpacity
-                    onPress={() => isGuest ? showGuestPrompt('감정 기록') : setShowEmotionInput(true)}
+                    onPress={() => isGuest ? showGuestPrompt('감정 기록') : router.push('/modal/emotion')}
                     style={{
                         backgroundColor: '#7C3AED',
                         width: 56,
@@ -356,39 +356,13 @@ export default function MainScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    onPress={() => isGuest ? showGuestPrompt('편지함') : setShowMail(true)}
+                    onPress={() => isGuest ? showGuestPrompt('편지함') : router.push('/modal/mail')}
                     style={{ alignItems: 'center', paddingVertical: 4, minWidth: 56 }}
                 >
                     <Text style={{ fontSize: 22 }}>📩</Text>
                     <Text style={{ color: colors.text.secondary, fontSize: 10, marginTop: 2 }}>편지</Text>
                 </TouchableOpacity>
             </View>
-
-            {/* Modals */}
-            <EmotionInputModal
-                visible={showEmotionInput}
-                onClose={() => setShowEmotionInput(false)}
-                onSuccess={handleEmotionSuccess}
-            />
-
-            <ComfortModal
-                visible={showComfortModal}
-                cluster={selectedCluster}
-                onClose={() => {
-                    setShowComfortModal(false);
-                    setSelectedCluster(null);
-                }}
-            />
-
-            <InboxModal
-                visible={showInbox}
-                onClose={() => setShowInbox(false)}
-            />
-
-            <MailModal
-                visible={showMail}
-                onClose={() => setShowMail(false)}
-            />
 
             <OnboardingTutorial
                 visible={showOnboarding}

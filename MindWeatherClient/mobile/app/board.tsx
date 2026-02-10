@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getPublicMessages, likePublicMessage } from '../services/api';
 import { PublicMessage } from '../types/emotion';
-import { EmotionInputModal } from '../components/EmotionInputModal';
 import { useAuth } from '../contexts/AuthContext';
+// import { useModal } from '../contexts/ModalContext'; // Removed
 
 export default function BoardScreen() {
     const router = useRouter();
@@ -14,8 +14,8 @@ export default function BoardScreen() {
     const [messages, setMessages] = useState<PublicMessage[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [showInput, setShowInput] = useState(false);
     const [sort, setSort] = useState<'latest' | 'top'>('latest');
+    // const { openModal } = useModal(); // Removed
 
     const fetchData = useCallback(async () => {
         try {
@@ -32,6 +32,17 @@ export default function BoardScreen() {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchData();
+        }, [fetchData])
+    );
+
+    // Use useFocusEffect from expo-router (need to import it)
+    // Actually, router 'focus' event listener?
+    // expo-router exports useFocusEffect.
+
 
     const onRefresh = () => {
         setRefreshing(true);
@@ -113,18 +124,12 @@ export default function BoardScreen() {
             {/* Floating Action Button */}
             <TouchableOpacity
                 className="absolute bottom-10 right-6 bg-purple-600 p-4 rounded-full shadow-lg shadow-purple-600/50 z-20"
-                onPress={() => setShowInput(true)}
+                onPress={() => router.push('/modal/emotion')}
             >
                 <Ionicons name="pencil" size={28} color="white" />
             </TouchableOpacity>
 
-            <EmotionInputModal
-                visible={showInput}
-                onClose={() => setShowInput(false)}
-                onSuccess={() => {
-                    fetchData();
-                }}
-            />
+
         </View>
     );
 }

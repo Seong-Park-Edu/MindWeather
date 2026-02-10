@@ -6,21 +6,21 @@ import { useAuth } from '../contexts/AuthContext';
 import { Letter, getLetters, markLetterAsRead } from '../services/api';
 
 interface MailModalProps {
-    visible: boolean;
     onClose: () => void;
 }
 
-export function MailModal({ visible, onClose }: MailModalProps) {
+export function MailModal({ onClose }: MailModalProps) {
     const { user } = useAuth();
     const [letters, setLetters] = useState<Letter[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedLetter, setSelectedLetter] = useState<Letter | null>(null);
 
+
     useEffect(() => {
-        if (visible && user) {
+        if (user) {
             fetchLetters();
         }
-    }, [visible, user]);
+    }, [user]);
 
     const fetchLetters = async () => {
         if (!user) return;
@@ -62,76 +62,65 @@ export function MailModal({ visible, onClose }: MailModalProps) {
     };
 
     return (
-        <Modal
-            visible={visible}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={onClose}
-        >
-            <Pressable
-                style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 }}
-                onPress={onClose}
-            >
-                <Pressable style={styles.content}>
-                    {/* Header */}
-                    <View style={styles.header}>
-                        {selectedLetter ? (
-                            <TouchableOpacity onPress={() => setSelectedLetter(null)} style={styles.backButton}>
-                                <Text style={styles.backButtonText}>← 목록</Text>
-                            </TouchableOpacity>
-                        ) : (
-                            <Text style={styles.title}>편지함 🌱</Text>
-                        )}
-                        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <Text style={styles.closeButtonText}>✕</Text>
-                        </TouchableOpacity>
-                    </View>
+        <View style={styles.content}>
+            {/* Header */}
+            <View style={styles.header}>
+                {selectedLetter ? (
+                    <TouchableOpacity onPress={() => setSelectedLetter(null)} style={styles.backButton}>
+                        <Text style={styles.backButtonText}>← 목록</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <Text style={styles.title}>편지함 🌱</Text>
+                )}
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                    <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+            </View>
 
-                    {/* Body */}
-                    <View style={styles.body}>
-                        {loading ? (
-                            <ActivityIndicator size="large" color="#A78BFA" />
-                        ) : selectedLetter ? (
-                            <ScrollView contentContainerStyle={styles.letterScroll}>
-                                <Text style={styles.letterDate}>{formatDate(selectedLetter.generatedAt)}</Text>
-                                <Text style={styles.letterTitle}>마음의 정원에서 온 편지</Text>
-                                <View style={styles.divider} />
-                                <Text style={styles.letterContent}>{selectedLetter.content}</Text>
-                            </ScrollView>
-                        ) : letters.length === 0 ? (
-                            <View style={styles.emptyState}>
-                                <Text style={styles.emptyIcon}>🌱</Text>
-                                <Text style={styles.emptyText}>아직 도착한 편지가 없어요</Text>
-                                <Text style={styles.emptySubText}>매일 저녁 7시에 따뜻한 편지가 도착할 거예요</Text>
-                            </View>
-                        ) : (
-                            <ScrollView contentContainerStyle={styles.listScroll}>
-                                {letters.map((letter) => (
-                                    <TouchableOpacity
-                                        key={letter.id}
-                                        style={styles.letterItem}
-                                        onPress={() => openLetter(letter)}
-                                    >
-                                        <View style={styles.letterHeader}>
-                                            <Text style={styles.itemTitle}>마음의 정원에서 온 편지</Text>
-                                            {!letter.isRead && (
-                                                <View style={styles.newBadge}>
-                                                    <Text style={styles.newBadgeText}>NEW</Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                        <Text style={styles.itemDate}>{formatDate(letter.generatedAt)}</Text>
-                                        <Text numberOfLines={2} style={styles.itemPreview}>
-                                            {letter.content}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-                        )}
+            {/* Body */}
+            <View style={styles.body}>
+                {loading ? (
+                    <ActivityIndicator size="large" color="#A78BFA" />
+                ) : selectedLetter ? (
+                    <ScrollView contentContainerStyle={styles.letterScroll}>
+                        <Text style={styles.letterDate}>{formatDate(selectedLetter.generatedAt)}</Text>
+                        <Text style={styles.letterTitle}>마음의 정원에서 온 편지</Text>
+                        <View style={styles.divider} />
+                        <Text style={styles.letterContent}>{selectedLetter.content}</Text>
+                    </ScrollView>
+                ) : letters.length === 0 ? (
+                    <View style={styles.emptyState}>
+                        <Text style={styles.emptyIcon}>🌱</Text>
+                        <Text style={styles.emptyText}>아직 도착한 편지가 없어요</Text>
+                        <Text style={styles.emptySubText}>매일 저녁 7시에 따뜻한 편지가 도착할 거예요</Text>
                     </View>
-                </Pressable>
-            </Pressable>
-        </Modal>
+                ) : (
+                    <ScrollView contentContainerStyle={styles.listScroll}>
+                        {letters.map((letter) => (
+                            <TouchableOpacity
+                                key={letter.id}
+                                style={styles.letterItem}
+                                onPress={() => openLetter(letter)}
+                            >
+                                <View style={styles.letterHeader}>
+                                    <Text style={styles.itemTitle}>마음의 정원에서 온 편지</Text>
+                                    {!letter.isRead && (
+                                        <View style={styles.newBadge}>
+                                            <Text style={styles.newBadgeText}>NEW</Text>
+                                        </View>
+                                    )}
+                                </View>
+                                <Text style={styles.itemDate}>{formatDate(letter.generatedAt)}</Text>
+                                <Text numberOfLines={2} style={styles.itemPreview}>
+                                    {letter.content}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                )}
+            </View>
+        </View>
+
     );
 }
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Animated, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { View, Text, Animated, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
     EmotionType,
     EmotionLabels,
@@ -14,6 +15,7 @@ interface TickerProps {
 }
 
 export function Ticker({ onModalStateChange }: TickerProps) {
+    const router = useRouter();
     const { user, isGuest } = useAuth();
     const { theme } = useTheme();
     const colors = themes[theme];
@@ -24,32 +26,9 @@ export function Ticker({ onModalStateChange }: TickerProps) {
     const [totalDays, setTotalDays] = useState<number | null>(null);
     const [longestStreak, setLongestStreak] = useState<number | null>(null);
     const [tickerIndex, setTickerIndex] = useState(0);
-    const [showStatsModal, setShowStatsModal] = useState(false);
-    const [canClose, setCanClose] = useState(false); // Fix for ghost touch
     const fadeAnim = useRef(new Animated.Value(1)).current;
 
-    useEffect(() => {
-        onModalStateChange?.(showStatsModal);
-    }, [showStatsModal, onModalStateChange]);
 
-    useEffect(() => {
-        if (showStatsModal) {
-            setCanClose(false);
-            const timer = setTimeout(() => setCanClose(true), 500);
-            return () => clearTimeout(timer);
-        } else {
-            setCanClose(false);
-        }
-    }, [showStatsModal]);
-
-    const handleBackdropPress = () => {
-        if (canClose) {
-            console.log('Ticker Backdrop pressed, closing modal');
-            setShowStatsModal(false);
-        } else {
-            console.log('Ticker Backdrop pressed too early, ignoring');
-        }
-    };
 
     useEffect(() => {
         loadStats();
@@ -170,7 +149,7 @@ export function Ticker({ onModalStateChange }: TickerProps) {
         <>
             <TouchableOpacity
                 onPress={() => {
-                    setShowStatsModal(true);
+                    router.push('/modal/stats');
                 }}
                 activeOpacity={0.7}
                 style={{
@@ -218,104 +197,7 @@ export function Ticker({ onModalStateChange }: TickerProps) {
             </TouchableOpacity>
 
             {/* Stats Modal */}
-            <Modal
-                visible={showStatsModal}
-                transparent
-                animationType="fade"
-                onRequestClose={() => {
-                    if (canClose) setShowStatsModal(false);
-                }}
-            >
-                <Pressable
-                    className="flex-1 bg-black/50 justify-center items-center px-6"
-                    onPress={handleBackdropPress}
-                >
-                    <Pressable
-                        style={{
-                            backgroundColor: colors.bg.secondary,
-                            borderColor: colors.border
-                        }}
-                        className="rounded-3xl p-6 w-full max-w-md border"
-                        onPress={(e) => e.stopPropagation()}
-                    >
-                        {/* Header */}
-                        <View className="items-center mb-6">
-                            <Text className="text-2xl mb-2">📊</Text>
-                            <Text style={{ color: colors.text.primary }} className="text-xl font-bold">실시간 통계</Text>
-                            <Text style={{ color: colors.text.secondary }} className="text-xs mt-1">현재 Mind Weather 현황</Text>
-                        </View>
 
-                        {/* Stats Grid */}
-                        <View className="gap-4">
-                            {/* Today's Emotions */}
-                            <View className="bg-purple-500/10 rounded-2xl p-4 border border-purple-500/20">
-                                <View className="flex-row items-center gap-3">
-                                    <Text className="text-3xl">🎭</Text>
-                                    <View className="flex-1">
-                                        <Text className="text-gray-400 text-xs mb-1">오늘 공유된 감정</Text>
-                                        <Text className="text-white text-2xl font-bold">{todayCount.toLocaleString()}</Text>
-                                        <Text className="text-gray-500 text-xs mt-0.5">명이 마음을 공유했어요</Text>
-                                    </View>
-                                </View>
-                            </View>
-
-                            {/* Dominant Emotion */}
-                            {dominantEmotion !== null && (
-                                <View className="bg-blue-500/10 rounded-2xl p-4 border border-blue-500/20">
-                                    <View className="flex-row items-center gap-3">
-                                        <Text className="text-3xl">{EmotionIcons[dominantEmotion]}</Text>
-                                        <View className="flex-1">
-                                            <Text className="text-gray-400 text-xs mb-1">가장 많은 감정</Text>
-                                            <Text className="text-white text-xl font-bold">{EmotionLabels[dominantEmotion]}</Text>
-                                            <Text className="text-gray-500 text-xs mt-0.5">지금 이 감정이 가장 많아요</Text>
-                                        </View>
-                                    </View>
-                                </View>
-                            )}
-
-                            {/* Total Comforts */}
-                            <View className="bg-pink-500/10 rounded-2xl p-4 border border-pink-500/20">
-                                <View className="flex-row items-center gap-3">
-                                    <Text className="text-3xl">🤗</Text>
-                                    <View className="flex-1">
-                                        <Text className="text-gray-400 text-xs mb-1">전달된 위로</Text>
-                                        <Text className="text-white text-2xl font-bold">{totalComforts.toLocaleString()}</Text>
-                                        <Text className="text-gray-500 text-xs mt-0.5">번의 따뜻한 위로가 전해졌어요</Text>
-                                    </View>
-                                </View>
-                            </View>
-
-                            {/* User Streak - Only for logged in users */}
-                            {!isGuest && currentStreak !== null && totalDays !== null && (
-                                <View className="bg-orange-500/10 rounded-2xl p-4 border border-orange-500/20">
-                                    <View className="flex-row items-center gap-3">
-                                        <Text className="text-3xl">{getStreakEmoji(currentStreak)}</Text>
-                                        <View className="flex-1">
-                                            <Text className="text-gray-400 text-xs mb-1">내 기록</Text>
-                                            <View className="flex-row items-center gap-2">
-                                                <Text className="text-white text-xl font-bold">{currentStreak}일 연속</Text>
-                                                {longestStreak !== null && longestStreak > 0 && (
-                                                    <Text className="text-gray-500 text-xs">(최고: {longestStreak}일)</Text>
-                                                )}
-                                            </View>
-                                            <Text className="text-gray-500 text-xs mt-0.5">총 {totalDays}일 기록했어요</Text>
-                                        </View>
-                                    </View>
-                                </View>
-                            )}
-                        </View>
-
-                        {/* Close button */}
-                        <TouchableOpacity
-                            onPress={() => setShowStatsModal(false)}
-                            style={{ backgroundColor: colors.bg.tertiary }}
-                            className="mt-6 py-3 rounded-xl"
-                        >
-                            <Text style={{ color: colors.text.primary }} className="text-center font-medium">닫기</Text>
-                        </TouchableOpacity>
-                    </Pressable>
-                </Pressable>
-            </Modal>
         </>
     );
 }
