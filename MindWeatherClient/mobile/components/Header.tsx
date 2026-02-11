@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme, themes } from '../contexts/ThemeContext';
 import { getNotificationCount } from '../services/api';
@@ -127,12 +127,25 @@ export function Header({ onInboxPress }: HeaderProps) {
 
                     {/* Login/Logout */}
                     <TouchableOpacity
-                        onPress={async () => {
+                        onPress={() => {
                             if (isGuest) {
                                 router.replace('/login');
                             } else {
-                                await signOut();
-                                router.replace('/login');
+                                Alert.alert(
+                                    '로그아웃',
+                                    '정말 로그아웃하시겠어요?',
+                                    [
+                                        { text: '취소', style: 'cancel' },
+                                        {
+                                            text: '로그아웃',
+                                            style: 'destructive',
+                                            onPress: async () => {
+                                                await signOut();
+                                                router.replace('/login');
+                                            },
+                                        },
+                                    ]
+                                );
                             }
                         }}
                         style={{ backgroundColor: colors.bg.tertiary }}

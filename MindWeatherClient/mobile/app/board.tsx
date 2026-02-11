@@ -35,6 +35,7 @@ export default function BoardScreen() {
     const [replyText, setReplyText] = useState('');
     const [replySubmitting, setReplySubmitting] = useState(false);
     const [replyError, setReplyError] = useState('');
+    const [replySuccess, setReplySuccess] = useState(false);
 
     const fetchData = useCallback(async () => {
         try {
@@ -61,8 +62,22 @@ export default function BoardScreen() {
 
     const handleLike = async (id: number) => {
         if (!user || isGuest) return;
+
+        // Optimistic update: 즉시 UI 반영
+        const prevMessages = messages;
+        setMessages(prev => prev.map(msg =>
+            msg.id === id
+                ? {
+                    ...msg,
+                    isLikedByMe: !msg.isLikedByMe,
+                    likeCount: msg.isLikedByMe ? msg.likeCount - 1 : msg.likeCount + 1,
+                }
+                : msg
+        ));
+
         try {
             const result = await likePublicMessage(id, user.id);
+            // 서버 실제 값으로 보정
             setMessages(prev => prev.map(msg =>
                 msg.id === id
                     ? { ...msg, likeCount: result.likeCount, isLikedByMe: result.liked }
@@ -70,6 +85,8 @@ export default function BoardScreen() {
             ));
         } catch (error) {
             console.error('Like failed', error);
+            // 실패 시 롤백
+            setMessages(prevMessages);
         }
     };
 
@@ -100,6 +117,7 @@ export default function BoardScreen() {
 
         setReplySubmitting(true);
         setReplyError('');
+        setReplySuccess(false);
         try {
             const newReply = await postPublicReply(messageId, user.id, replyText.trim());
             setReplies(prev => [...prev, newReply]);
@@ -109,6 +127,8 @@ export default function BoardScreen() {
                     ? { ...msg, replyCount: msg.replyCount + 1 }
                     : msg
             ));
+            setReplySuccess(true);
+            setTimeout(() => setReplySuccess(false), 2000);
         } catch (e: any) {
             setReplyError(e.message || '답글 게시에 실패했습니다.');
         } finally {
@@ -287,6 +307,9 @@ export default function BoardScreen() {
                                             )}
                                         </TouchableOpacity>
                                     </View>
+                                )}
+                                {replySuccess && (
+                                    <Text style={{ color: '#10B981', fontSize: 11, marginTop: 4 }}>답글이 등록되었어요 ✓</Text>
                                 )}
                                 {replyError ? (
                                     <Text style={{ color: '#EF4444', fontSize: 11, marginTop: 4 }}>{replyError}</Text>

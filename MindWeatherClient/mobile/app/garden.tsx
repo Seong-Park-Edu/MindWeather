@@ -350,6 +350,9 @@ export default function GardenScreen() {
     });
     const [selectedPlant, setSelectedPlant] = useState<{ type: EmotionType, count: number } | null>(null);
     const [loading, setLoading] = useState(true);
+    const [wateringToast, setWateringToast] = useState('');
+    const toastOpacity = useSharedValue(0);
+    const toastTranslateY = useSharedValue(20);
 
     const fetchData = useCallback(async () => {
         if (!user || isGuest) return;
@@ -403,18 +406,35 @@ export default function GardenScreen() {
         return counts;
     }, [emotions]);
 
+    const showToast = (message: string) => {
+        setWateringToast(message);
+        toastOpacity.value = withSequence(
+            withTiming(1, { duration: 300 }),
+            withDelay(1500, withTiming(0, { duration: 500 }))
+        );
+        toastTranslateY.value = withSequence(
+            withTiming(0, { duration: 300 }),
+            withDelay(1500, withTiming(-20, { duration: 500 }))
+        );
+    };
+
+    const toastStyle = useAnimatedStyle(() => ({
+        opacity: toastOpacity.value,
+        transform: [{ translateY: toastTranslateY.value }],
+    }));
+
     const handlePlantPress = (type: EmotionType, count: number) => {
         setSelectedPlant({ type, count });
     };
 
     const handleWatering = async () => {
         if (gardenState.waterDrops <= 0) {
-            Alert.alert('💧 물방울 부족', '물방울이 없어요!\n감정 일기를 쓰거나 내일 다시 방문해주세요.');
+            showToast('💧 물방울이 없어요! 내일 다시 방문해주세요');
             return;
         }
 
         if (gardenState.waterLevel >= 100) {
-            Alert.alert('💧', '이미 수분이 가득 차 있어요!');
+            showToast('💧 이미 수분이 가득 차 있어요!');
             return;
         }
 
@@ -431,7 +451,7 @@ export default function GardenScreen() {
         await AsyncStorage.setItem(`@garden_state_${user?.id}`, JSON.stringify(newState));
         setGardenState(newState);
 
-        Alert.alert('💧', '모든 식물이 촉촉해졌어요!');
+        showToast('💧 물을 줬어요! 식물이 촉촉해졌어요 ✨');
     };
 
     if (isGuest) {
@@ -525,6 +545,13 @@ export default function GardenScreen() {
                     </View>
                 </TouchableOpacity>
 
+                {/* Watering Toast */}
+                {wateringToast !== '' && (
+                    <Animated.View style={[styles.wateringToast, toastStyle]} pointerEvents="none">
+                        <Text style={styles.wateringToastText}>{wateringToast}</Text>
+                    </Animated.View>
+                )}
+
                 <PlantDetailModal
                     plant={selectedPlant}
                     waterLevel={gardenState.waterLevel}
@@ -604,4 +631,7 @@ const styles = StyleSheet.create({
 
     closeButton: { backgroundColor: '#1f2937', width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
     closeButtonText: { fontWeight: 'bold', color: 'white', fontSize: 18 },
+
+    wateringToast: { position: 'absolute', bottom: 120, left: 24, right: 24, backgroundColor: 'rgba(30,58,95,0.92)', paddingVertical: 14, paddingHorizontal: 20, borderRadius: 16, alignItems: 'center', zIndex: 900 },
+    wateringToastText: { color: 'white', fontSize: 15, fontWeight: '600' },
 });
