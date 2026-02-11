@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme, themes } from '../contexts/ThemeContext';
 import { getReceivedMessages, getSentMessages, thankMessage } from '../services/api';
 import type { MessageResponse } from '../types/emotion';
 
@@ -10,6 +11,8 @@ interface InboxModalProps {
 
 export function InboxModal({ onClose }: InboxModalProps) {
     const { user } = useAuth();
+    const { theme } = useTheme();
+    const colors = themes[theme];
     const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
     const [messages, setMessages] = useState<MessageResponse[]>([]);
     const [loading, setLoading] = useState(true);
@@ -88,11 +91,12 @@ export function InboxModal({ onClose }: InboxModalProps) {
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 20 }}
-                className="glass max-w-lg w-full h-[600px] flex flex-col rounded-2xl overflow-hidden"
+                className="max-w-lg w-full h-[600px] flex flex-col rounded-2xl overflow-hidden backdrop-blur-xl border"
+                style={{ backgroundColor: colors.bg.primary + 'F0', borderColor: colors.border, color: colors.text.primary }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                <div className="p-6 border-b flex items-center justify-between" style={{ borderColor: colors.border }}>
                     <h2 className="text-xl font-bold">📬 마음 우체통</h2>
                     <button
                         onClick={onClose}
@@ -103,7 +107,7 @@ export function InboxModal({ onClose }: InboxModalProps) {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex p-2 gap-2 bg-black/20">
+                <div className="flex p-2 gap-2" style={{ backgroundColor: colors.bg.tertiary + '40' }}>
                     <button
                         onClick={() => setActiveTab('received')}
                         className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'received'
@@ -169,7 +173,8 @@ export function InboxModal({ onClose }: InboxModalProps) {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.05 }}
-                                    className="glass p-4 rounded-xl border border-white/5 hover:border-white/20 transition-all"
+                                    className="p-4 rounded-xl border transition-all"
+                                    style={{ backgroundColor: colors.bg.tertiary + '60', borderColor: colors.border + '40' }}
                                 >
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex items-center gap-2">

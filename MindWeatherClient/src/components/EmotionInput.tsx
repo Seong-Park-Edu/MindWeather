@@ -12,6 +12,7 @@ import {
 } from '../types/emotion';
 import { postEmotion } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme, themes } from '../contexts/ThemeContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 
 interface EmotionInputProps {
@@ -20,6 +21,8 @@ interface EmotionInputProps {
 
 export function EmotionInput({ onSuccess }: EmotionInputProps) {
     const { user } = useAuth();
+    const { theme } = useTheme();
+    const colors = themes[theme];
     const geo = useGeolocation();
     const [selectedEmotion, setSelectedEmotion] = useState<EmotionType | null>(null);
     const [intensity, setIntensity] = useState(5);
@@ -79,7 +82,8 @@ export function EmotionInput({ onSuccess }: EmotionInputProps) {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass p-8 rounded-2xl w-[95%] max-w-lg mx-auto"
+            className="p-8 rounded-2xl w-[95%] max-w-lg mx-auto backdrop-blur-xl border"
+            style={{ backgroundColor: colors.bg.secondary + 'F0', borderColor: colors.border, color: colors.text.primary }}
         >
             <h2 className="text-2xl font-bold mb-8 text-center bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                 오늘의 마음 날씨는? ☁️

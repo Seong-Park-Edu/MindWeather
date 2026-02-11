@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSignalR } from '../contexts/SignalRContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme, themes } from '../contexts/ThemeContext';
 import {
     EmotionType,
     EmotionLabels,
@@ -13,6 +14,8 @@ import type { StreakData } from '../services/api';
 export function Ticker() {
     const { latestEmotion } = useSignalR();
     const { user } = useAuth();
+    const { theme } = useTheme();
+    const colors = themes[theme];
     const [todayCount, setTodayCount] = useState(0);
     const [totalComforts, setTotalComforts] = useState(0);
     const [dominantEmotion, setDominantEmotion] = useState<EmotionType | null>(null);
@@ -128,7 +131,8 @@ export function Ticker() {
             {/* Clickable Ticker - matches mobile style */}
             <button
                 onClick={() => setShowStatsModal(true)}
-                className="w-full bg-gray-800/90 border-t border-gray-700 px-4 py-3 cursor-pointer hover:bg-gray-700/90 transition-colors"
+                className="w-full border-t px-4 py-3 cursor-pointer transition-colors"
+                style={{ backgroundColor: colors.bg.secondary + 'E6', borderColor: colors.border }}
             >
                 <div className="flex items-center gap-3">
                     {/* Live indicator */}
@@ -180,7 +184,8 @@ export function Ticker() {
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-3xl p-6"
+                            className="w-full max-w-md border rounded-3xl p-6"
+                            style={{ backgroundColor: colors.bg.secondary, borderColor: colors.border }}
                         >
                             {/* Header */}
                             <div className="text-center mb-6">
@@ -252,7 +257,8 @@ export function Ticker() {
                             {/* Close button - matches mobile */}
                             <button
                                 onClick={() => setShowStatsModal(false)}
-                                className="mt-6 w-full py-3 bg-gray-700 hover:bg-gray-600 rounded-xl text-white font-medium transition-colors"
+                                className="mt-6 w-full py-3 rounded-xl font-medium transition-colors"
+                                style={{ backgroundColor: colors.bg.tertiary, color: colors.text.primary }}
                             >
                                 닫기
                             </button>

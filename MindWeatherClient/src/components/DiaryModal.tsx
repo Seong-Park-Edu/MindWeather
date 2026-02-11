@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { EmotionResponse } from '../types/emotion';
 import { getMyEmotions } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme, themes } from '../contexts/ThemeContext';
 import { EmotionColors, EmotionIcons, EmotionLabels } from '../types/emotion';
 import { StreakDisplay } from './StreakDisplay';
 import { WeeklyInsights } from './WeeklyInsights';
@@ -13,6 +14,8 @@ interface DiaryModalProps {
 
 export function DiaryModal({ onClose }: DiaryModalProps) {
     const { user } = useAuth();
+    const { theme } = useTheme();
+    const colors = themes[theme];
     const userId = user?.id;
     const [currentDate, setCurrentDate] = useState(new Date());
     const [emotions, setEmotions] = useState<EmotionResponse[]>([]);
@@ -106,7 +109,8 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative w-full max-w-lg bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+                className="relative w-full max-w-lg backdrop-blur-xl border rounded-3xl p-6 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+                style={{ backgroundColor: colors.bg.primary + 'F0', borderColor: colors.border, color: colors.text.primary }}
             >
                 {/* Close Button */}
                 <button

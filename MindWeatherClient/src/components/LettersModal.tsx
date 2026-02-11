@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme, themes } from '../contexts/ThemeContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5015/api';
 
@@ -20,6 +21,8 @@ interface LettersModalProps {
 
 export function LettersModal({ onClose }: LettersModalProps) {
     const { user } = useAuth();
+    const { theme } = useTheme();
+    const colors = themes[theme];
     const [letters, setLetters] = useState<Letter[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedLetter, setSelectedLetter] = useState<Letter | null>(null);
@@ -92,10 +95,11 @@ export function LettersModal({ onClose }: LettersModalProps) {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-gray-800/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
+                className="backdrop-blur-md border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
+                style={{ backgroundColor: colors.bg.primary + 'F0', borderColor: colors.border, color: colors.text.primary }}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: colors.border }}>
                     {selectedLetter ? (
                         <>
                             <button
@@ -163,7 +167,8 @@ export function LettersModal({ onClose }: LettersModalProps) {
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={() => openLetter(letter)}
-                                    className="w-full bg-gray-700/50 hover:bg-gray-700/70 border border-white/10 rounded-xl p-5 text-left transition-all"
+                                    className="w-full border rounded-xl p-5 text-left transition-all"
+                                    style={{ backgroundColor: colors.bg.tertiary + '80', borderColor: colors.border }}
                                 >
                                     <div className="flex items-start gap-4">
                                         <div className="text-3xl">🌱</div>

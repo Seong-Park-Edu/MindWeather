@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export function LoginPage() {
+    const { enterGuestMode } = useAuth();
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -111,6 +113,18 @@ export function LoginPage() {
                     >
                         {isSignUp ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입'}
                     </button>
+                </div>
+
+                {/* Guest Mode */}
+                <div className="mt-4 pt-4 border-t border-white/10 text-center">
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={enterGuestMode}
+                        className="w-full py-3 rounded-xl font-medium text-white/80 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm"
+                    >
+                        게스트로 둘러보기 👀
+                    </motion.button>
                 </div>
             </motion.div>
         </div>

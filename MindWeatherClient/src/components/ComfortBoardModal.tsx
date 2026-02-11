@@ -3,13 +3,16 @@ import { motion } from 'framer-motion';
 import { getPublicMessages, postPublicMessage, likePublicMessage } from '../services/api';
 import type { PublicMessage } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme, themes } from '../contexts/ThemeContext';
 
 interface ComfortBoardModalProps {
     onClose: () => void;
 }
 
 export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
-    const { user } = useAuth();
+    const { user, isGuest } = useAuth();
+    const { theme } = useTheme();
+    const colors = themes[theme];
     const [messages, setMessages] = useState<PublicMessage[]>([]);
     const [newContent, setNewContent] = useState('');
     const [sortBy, setSortBy] = useState<'latest' | 'top'>('latest');
@@ -65,7 +68,8 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="relative w-[95%] max-w-xl bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-3xl pt-10 px-10 pb-0 shadow-2xl flex flex-col gap-8 max-h-[85vh] overflow-hidden"
+                className="relative w-[95%] max-w-xl backdrop-blur-xl border rounded-3xl pt-10 px-10 pb-0 shadow-2xl flex flex-col gap-8 max-h-[85vh] overflow-hidden"
+                style={{ backgroundColor: colors.bg.primary + 'F0', borderColor: colors.border, color: colors.text.primary }}
             >
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-4">
@@ -98,7 +102,8 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                     </div>
                 </div>
 
-                {/* Post Form */}
+                {/* Post Form - hide for guests */}
+                {!isGuest && (
                 <div className="shrink-0 bg-white/5 p-6 rounded-2xl border border-white/10 flex flex-col gap-6 shadow-inner">
                     <textarea
                         value={newContent}
@@ -119,6 +124,7 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
                         </motion.button>
                     </div>
                 </div>
+                )}
 
                 {/* Messages List */}
                 <div className="flex-1 overflow-y-auto space-y-6 min-h-0 custom-scrollbar p-4 -mx-4 pb-12">
