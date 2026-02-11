@@ -350,6 +350,7 @@ export default function GardenScreen() {
     });
     const [selectedPlant, setSelectedPlant] = useState<{ type: EmotionType, count: number } | null>(null);
     const [loading, setLoading] = useState(true);
+    const [gardenError, setGardenError] = useState(false);
     const [wateringToast, setWateringToast] = useState('');
     const toastOpacity = useSharedValue(0);
     const toastTranslateY = useSharedValue(20);
@@ -359,6 +360,7 @@ export default function GardenScreen() {
 
         try {
             setLoading(true);
+            setGardenError(false);
             const now = new Date();
             const data = await getMyEmotions(user.id, now.getFullYear(), now.getMonth() + 1);
             setEmotions(data);
@@ -386,6 +388,7 @@ export default function GardenScreen() {
 
         } catch (error) {
             console.error('Failed to load garden:', error);
+            setGardenError(true);
         } finally {
             setLoading(false);
         }
@@ -511,6 +514,22 @@ export default function GardenScreen() {
                     <View style={styles.gardenGrid}>
                         {loading ? (
                             <ActivityIndicator size="large" color="white" style={{ marginTop: 100 }} />
+                        ) : gardenError ? (
+                            <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 80 }}>
+                                <Text style={{ fontSize: 40, marginBottom: 12 }}>😥</Text>
+                                <Text style={{ color: 'white', fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
+                                    정원을 불러오지 못했어요
+                                </Text>
+                                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+                                    네트워크 연결을 확인하고 다시 시도해주세요
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={fetchData}
+                                    style={{ backgroundColor: '#9333ea', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 }}
+                                >
+                                    <Text style={{ color: '#fff', fontWeight: '600' }}>다시 시도</Text>
+                                </TouchableOpacity>
+                            </View>
                         ) : (
                             <View style={styles.plantGrid}>
                                 {AllEmotionTypes.map((type) => (

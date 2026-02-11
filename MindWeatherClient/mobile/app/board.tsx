@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
     View, Text, TouchableOpacity, FlatList, RefreshControl,
-    ActivityIndicator, TextInput, KeyboardAvoidingView, Platform,
+    ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -26,6 +26,7 @@ export default function BoardScreen() {
     const [messages, setMessages] = useState<PublicMessage[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [fetchError, setFetchError] = useState(false);
     const [sort, setSort] = useState<'latest' | 'top'>('latest');
 
     // 답글 관련 state
@@ -39,10 +40,12 @@ export default function BoardScreen() {
 
     const fetchData = useCallback(async () => {
         try {
+            setFetchError(false);
             const data = await getPublicMessages(sort, realUserId);
             setMessages(data);
         } catch (error) {
             console.error('Failed to fetch messages', error);
+            setFetchError(true);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -122,6 +125,7 @@ export default function BoardScreen() {
             const newReply = await postPublicReply(messageId, user.id, replyText.trim());
             setReplies(prev => [...prev, newReply]);
             setReplyText('');
+            Keyboard.dismiss();
             setMessages(prev => prev.map(msg =>
                 msg.id === messageId
                     ? { ...msg, replyCount: msg.replyCount + 1 }
@@ -274,22 +278,34 @@ export default function BoardScreen() {
                                         gap: 8,
                                         marginTop: 4,
                                     }}>
-                                        <TextInput
-                                            value={replyText}
-                                            onChangeText={setReplyText}
-                                            placeholder="따뜻한 답글을 남겨주세요..."
-                                            placeholderTextColor={colors.text.tertiary}
-                                            maxLength={200}
-                                            style={{
-                                                flex: 1,
-                                                backgroundColor: colors.bg.tertiary,
-                                                borderRadius: 20,
-                                                paddingHorizontal: 14,
-                                                paddingVertical: 8,
-                                                color: colors.text.primary,
-                                                fontSize: 13,
-                                            }}
-                                        />
+                                        <View style={{ flex: 1 }}>
+                                            <TextInput
+                                                value={replyText}
+                                                onChangeText={setReplyText}
+                                                placeholder="따뜻한 답글을 남겨주세요..."
+                                                placeholderTextColor={colors.text.tertiary}
+                                                maxLength={200}
+                                                style={{
+                                                    backgroundColor: colors.bg.tertiary,
+                                                    borderRadius: 20,
+                                                    paddingHorizontal: 14,
+                                                    paddingVertical: 8,
+                                                    color: colors.text.primary,
+                                                    fontSize: 13,
+                                                }}
+                                            />
+                                            {replyText.length > 0 && (
+                                                <Text style={{
+                                                    color: replyText.length >= 180 ? '#EF4444' : colors.text.tertiary,
+                                                    fontSize: 10,
+                                                    textAlign: 'right',
+                                                    marginTop: 2,
+                                                    marginRight: 8,
+                                                }}>
+                                                    {replyText.length}/200
+                                                </Text>
+                                            )}
+                                        </View>
                                         <TouchableOpacity
                                             onPress={() => handleSubmitReply(item.id)}
                                             disabled={!replyText.trim() || replySubmitting}
@@ -357,6 +373,27 @@ export default function BoardScreen() {
             {loading ? (
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                     <ActivityIndicator size="large" color={colors.accent.primary} />
+                </View>
+            ) : fetchError ? (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+                    <Text style={{ fontSize: 40, marginBottom: 12 }}>😥</Text>
+                    <Text style={{ color: colors.text.primary, fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
+                        게시글을 불러오지 못했어요
+                    </Text>
+                    <Text style={{ color: colors.text.secondary, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+                        네트워크 연결을 확인하고 다시 시도해주세요
+                    </Text>
+                    <TouchableOpacity
+                        onPress={() => { setLoading(true); fetchData(); }}
+                        style={{
+                            backgroundColor: colors.accent.primary,
+                            paddingHorizontal: 24,
+                            paddingVertical: 10,
+                            borderRadius: 20,
+                        }}
+                    >
+                        <Text style={{ color: '#fff', fontWeight: '600' }}>다시 시도</Text>
+                    </TouchableOpacity>
                 </View>
             ) : (
                 <KeyboardAvoidingView

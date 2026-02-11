@@ -19,6 +19,7 @@ export default function DiaryScreen() {
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [selectedEmotion, setSelectedEmotion] = useState<EmotionResponse | null>(null);
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [refreshing, setRefreshing] = useState(false);
 
     const fetchMonthData = useCallback(async (year: number, month: number) => {
         if (!user) return;
@@ -63,6 +64,12 @@ export default function DiaryScreen() {
         setSelectedEmotion(emotion || null);
     };
 
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await fetchMonthData(currentMonth.getFullYear(), currentMonth.getMonth() + 1);
+        setRefreshing(false);
+    };
+
     const handleMonthChange = (date: DateData) => {
         const newDate = new Date(date.timestamp);
         setCurrentMonth(newDate);
@@ -81,7 +88,12 @@ export default function DiaryScreen() {
                 </View>
             </SafeAreaView>
 
-            <ScrollView className="flex-1 px-4 pt-4">
+            <ScrollView
+                className="flex-1 px-4 pt-4"
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />
+                }
+            >
                 {/* Streak Display */}
                 <View className="mb-4">
                     <StreakDisplay />
