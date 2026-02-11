@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Modal, Pressable, Alert } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme, themes } from '../contexts/ThemeContext';
 import { getNotificationCount } from '../services/api';
@@ -55,7 +55,7 @@ export function Header({ onInboxPress }: HeaderProps) {
         };
 
         poll();
-        const interval = setInterval(poll, 10000);
+        const interval = setInterval(poll, 30000);
         return () => clearInterval(interval);
     }, [user, getLastCheckedAt]);
 
@@ -112,16 +112,27 @@ export function Header({ onInboxPress }: HeaderProps) {
                         </TouchableOpacity>
                     )}
 
+                    {/* Settings */}
+                    {!isGuest && (
+                        <TouchableOpacity
+                            onPress={() => router.push('/settings')}
+                            className="p-2 bg-white/10 rounded-full"
+                        >
+                            <Text className="text-xl">⚙️</Text>
+                        </TouchableOpacity>
+                    )}
+
                     {/* Theme Switcher */}
                     <ThemeSwitcher compact />
 
                     {/* Login/Logout */}
                     <TouchableOpacity
-                        onPress={() => {
+                        onPress={async () => {
                             if (isGuest) {
-                                router.push('/login');
+                                router.replace('/login');
                             } else {
-                                signOut();
+                                await signOut();
+                                router.replace('/login');
                             }
                         }}
                         style={{ backgroundColor: colors.bg.tertiary }}

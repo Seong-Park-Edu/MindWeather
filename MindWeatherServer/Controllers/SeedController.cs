@@ -10,6 +10,7 @@ namespace MindWeatherServer.Controllers
     public class SeedController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IWebHostEnvironment _env;
         private static readonly Random _random = new();
 
         // System Bot UUID (고정된 시스템 봇 ID)
@@ -31,17 +32,22 @@ namespace MindWeatherServer.Controllers
             "내일은 더 좋은 날이 될 거예요. 🌈"
         };
 
-        public SeedController(AppDbContext context)
+        public SeedController(AppDbContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
         /// <summary>
         /// 50개의 랜덤 감정 로그를 생성합니다 (Cold Start 문제 해결용)
+        /// 개발 환경에서만 사용 가능합니다.
         /// </summary>
         [HttpPost("fake-emotions")]
         public async Task<IActionResult> GenerateFakeEmotions()
         {
+            if (!_env.IsDevelopment())
+                return NotFound();
+
             var createdUsers = 0;
             var createdLogs = 0;
 
@@ -91,10 +97,14 @@ namespace MindWeatherServer.Controllers
 
         /// <summary>
         /// 외로운 감정 로그들에게 시스템 봇이 위로 메시지를 보냅니다
+        /// 개발 환경에서만 사용 가능합니다.
         /// </summary>
         [HttpPost("system-comfort")]
         public async Task<IActionResult> SendSystemComfort()
         {
+            if (!_env.IsDevelopment())
+                return NotFound();
+
             // 시스템 봇 유저가 없으면 생성
             var systemBot = await _context.Users.FindAsync(SystemBotId);
             if (systemBot == null)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace MindWeatherServer.Models
@@ -16,6 +17,12 @@ namespace MindWeatherServer.Models
 
         public int LikeCount { get; set; } = 0; // 공감(하트) 수
 
+        public int ReplyCount { get; set; } = 0; // 답글 수
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation
+        public virtual ICollection<PublicMessageReply> Replies { get; set; } = new List<PublicMessageReply>();
+        public virtual ICollection<PublicMessageLike> Likes { get; set; } = new List<PublicMessageLike>();
     }
 }

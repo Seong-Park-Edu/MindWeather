@@ -164,7 +164,26 @@ export interface PublicMessage {
     userId: string;
     content: string;
     likeCount: number;
+    replyCount: number;
+    isLikedByMe: boolean;
     createdAt: string;
+}
+
+export interface PublicMessageReply {
+    id: number;
+    userId: string;
+    content: string;
+    createdAt: string;
+}
+
+export interface PublicMessageDetail {
+    id: number;
+    userId: string;
+    content: string;
+    likeCount: number;
+    isLikedByMe: boolean;
+    createdAt: string;
+    replies: PublicMessageReply[];
 }
 
 // Korean regions

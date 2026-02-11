@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { getUserProfile } from '../services/api';
 import { setupPushNotifications } from '../services/notification';
+import { initializeReminder } from '../services/reminder';
 
 interface AuthContextType {
     user: User | null;
@@ -40,6 +41,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // 푸시 알림 설정 (실제 유저인 경우에만)
             await setupPushNotifications(userId);
+
+            // 감정 기록 리마인더 초기화
+            await initializeReminder(userId);
         } catch (error) {
             console.error('Failed to fetch admin status:', error);
             setIsAdmin(false);

@@ -2,17 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
-    Modal,
     TouchableOpacity,
     ScrollView,
     ActivityIndicator,
-    Pressable,
     Alert,
     Switch,
-    Dimensions,
 } from 'react-native';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { getReceivedMessages, getSentMessages, thankMessage } from '../services/api';

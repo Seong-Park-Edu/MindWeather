@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
+using MindWeatherServer.Helpers;
 
 namespace MindWeatherServer.Controllers
 {
@@ -19,8 +20,14 @@ namespace MindWeatherServer.Controllers
         /// 사용자의 편지 목록 조회 (최신순)
         /// </summary>
         [HttpGet("{userId}")]
-        public async Task<IActionResult> GetLetters(Guid userId, [FromQuery] int? limit = 30)
+        public async Task<IActionResult> GetLetters(
+            Guid userId,
+            [FromQuery] int? limit = 30,
+            [FromHeader(Name = "Authorization")] string? authorization = null)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var letters = await _context.DailyLetters
                 .Where(l => l.UserId == userId)
                 .OrderByDescending(l => l.GeneratedAt)
@@ -44,7 +51,9 @@ namespace MindWeatherServer.Controllers
         /// 특정 편지 조회
         /// </summary>
         [HttpGet("detail/{letterId}")]
-        public async Task<IActionResult> GetLetter(long letterId)
+        public async Task<IActionResult> GetLetter(
+            long letterId,
+            [FromHeader(Name = "Authorization")] string? authorization = null)
         {
             var letter = await _context.DailyLetters.FindAsync(letterId);
 
@@ -52,6 +61,10 @@ namespace MindWeatherServer.Controllers
             {
                 return NotFound(new { message = "편지를 찾을 수 없습니다." });
             }
+
+            // 편지 소유자만 조회 가능
+            var authError = JwtHelper.ValidateUserId(authorization, letter.UserId);
+            if (authError != null) return authError;
 
             return Ok(new
             {
@@ -70,8 +83,14 @@ namespace MindWeatherServer.Controllers
         /// 편지 읽음 처리
         /// </summary>
         [HttpPut("{letterId}/read")]
-        public async Task<IActionResult> MarkAsRead(long letterId, [FromQuery] Guid userId)
+        public async Task<IActionResult> MarkAsRead(
+            long letterId,
+            [FromQuery] Guid userId,
+            [FromHeader(Name = "Authorization")] string? authorization = null)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var letter = await _context.DailyLetters.FindAsync(letterId);
 
             if (letter == null)
@@ -98,8 +117,13 @@ namespace MindWeatherServer.Controllers
         /// 읽지 않은 편지 개수
         /// </summary>
         [HttpGet("{userId}/unread-count")]
-        public async Task<IActionResult> GetUnreadCount(Guid userId)
+        public async Task<IActionResult> GetUnreadCount(
+            Guid userId,
+            [FromHeader(Name = "Authorization")] string? authorization = null)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var count = await _context.DailyLetters
                 .Where(l => l.UserId == userId && !l.IsRead)
                 .CountAsync();

@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
 using MindWeatherServer.DTOs;
+using MindWeatherServer.Helpers;
 using MindWeatherServer.Models;
 using MindWeatherServer.Services;
 
@@ -13,19 +15,22 @@ namespace MindWeatherServer.Controllers
     {
         private readonly AppDbContext _context;
         private readonly PushNotificationService _pushService;
+        private readonly GeminiService _geminiService;
 
-        public ComfortMessagesController(AppDbContext context, PushNotificationService pushService)
+        public ComfortMessagesController(AppDbContext context, PushNotificationService pushService, GeminiService geminiService)
         {
             _context = context;
             _pushService = pushService;
+            _geminiService = geminiService;
         }
 
         // 1. 위로 메시지 보내기 (POST /api/comfort-messages)
         [HttpPost]
+        [EnableRateLimiting("write")]
         public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest request)
         {
-            // AI 모더레이션 체크 (Placeholder - 실제 OpenAI API 연동 시 수정)
-            var isContentSafe = await CheckContentSafetyAsync(request.Content);
+            // AI 모더레이션 체크 (Gemini)
+            var isContentSafe = await _geminiService.CheckContentSafety(request.Content);
 
             if (!isContentSafe)
             {
@@ -92,8 +97,13 @@ namespace MindWeatherServer.Controllers
 
         // 2. 받은 메시지 조회 (GET /api/comfort-messages/received/{userId})
         [HttpGet("received/{userId}")]
-        public async Task<IActionResult> GetReceivedMessages(Guid userId)
+        public async Task<IActionResult> GetReceivedMessages(
+            Guid userId,
+            [FromHeader(Name = "Authorization")] string? authorization = null)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var messages = await _context
                 .ComfortMessages.Where(m =>
                     m.ReceiverId == userId && m.Status == MessageStatus.Sent
@@ -118,8 +128,13 @@ namespace MindWeatherServer.Controllers
 
         // 2.5 보낸 메시지 조회 (GET /api/comfort-messages/sent/{userId})
         [HttpGet("sent/{userId}")]
-        public async Task<IActionResult> GetSentMessages(Guid userId)
+        public async Task<IActionResult> GetSentMessages(
+            Guid userId,
+            [FromHeader(Name = "Authorization")] string? authorization = null)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var messages = await _context
                 .ComfortMessages.Where(m => m.SenderId == userId)
                 .OrderByDescending(m => m.SentAt)
@@ -142,8 +157,14 @@ namespace MindWeatherServer.Controllers
 
         // 3. 감사 표시 (PUT /api/comfort-messages/{id}/thank)
         [HttpPut("{id}/thank")]
-        public async Task<IActionResult> ThankMessage(long id, [FromQuery] Guid userId)
+        public async Task<IActionResult> ThankMessage(
+            long id,
+            [FromQuery] Guid userId,
+            [FromHeader(Name = "Authorization")] string? authorization = null)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var message = await _context.ComfortMessages.FindAsync(id);
 
             if (message == null)
@@ -206,9 +227,12 @@ namespace MindWeatherServer.Controllers
         [HttpGet("notifications/{userId}")]
         public async Task<IActionResult> GetNotificationCount(
             Guid userId,
-            [FromQuery] DateTime? since
-        )
+            [FromQuery] DateTime? since,
+            [FromHeader(Name = "Authorization")] string? authorization = null)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var sinceDate = since ?? DateTime.MinValue;
 
             // 1. 새로 받은 위로 메시지 개수
@@ -235,25 +259,5 @@ namespace MindWeatherServer.Controllers
             );
         }
 
-        // AI 콘텐츠 안전성 검사 (Placeholder)
-        private async Task<bool> CheckContentSafetyAsync(string content)
-        {
-            // TODO: OpenAI Moderation API 연동
-            // POST https://api.openai.com/v1/moderations
-            // 현재는 기본적인 금칙어 필터만 적용
-
-            var bannedWords = new[] { "바보", "멍청이", "죽어" }; // 예시
-
-            foreach (var word in bannedWords)
-            {
-                if (content.Contains(word, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-            }
-
-            await Task.CompletedTask; // async 유지
-            return true;
-        }
     }
 }

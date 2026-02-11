@@ -206,7 +206,6 @@ export default function MainScreen() {
                     avgIntensity,
                 };
                 setSelectedCluster(cluster);
-                setSelectedCluster(cluster);
                 router.push({
                     pathname: '/modal/comfort',
                     params: { cluster: JSON.stringify(cluster) }

@@ -15,22 +15,29 @@ namespace MindWeatherServer.Services
             _logger = logger;
         }
 
+        // 한국 표준시 (KST = UTC+9)
+        private static readonly TimeZoneInfo KstTimeZone =
+            TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time");
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("DailyLetterScheduler started");
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                var now = DateTime.Now;
-                var scheduledTime = new DateTime(now.Year, now.Month, now.Day, 19, 0, 0); // 오후 7시
+                var nowKst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, KstTimeZone);
+                var scheduledTime = new DateTime(nowKst.Year, nowKst.Month, nowKst.Day, 19, 0, 0); // KST 오후 7시
 
                 // 이미 오후 7시가 지났으면 내일 7시로 설정
-                if (now > scheduledTime)
+                if (nowKst > scheduledTime)
                 {
                     scheduledTime = scheduledTime.AddDays(1);
                 }
 
-                var delay = scheduledTime - now;
+                // KST 스케줄을 UTC 기준 delay로 변환
+                var scheduledUtc = TimeZoneInfo.ConvertTimeToUtc(scheduledTime, KstTimeZone);
+
+                var delay = scheduledUtc - DateTime.UtcNow;
                 _logger.LogInformation($"Next letter generation scheduled at: {scheduledTime:yyyy-MM-dd HH:mm:ss} (in {delay.TotalHours:F1} hours)");
 
                 await Task.Delay(delay, stoppingToken);
@@ -104,8 +111,15 @@ namespace MindWeatherServer.Services
             // 감정 요약 생성
             var emotionSummary = GenerateEmotionSummary(emotionLogs);
 
+            // 이전 편지 조회 (중복 방지)
+            var previousLetter = await context.DailyLetters
+                .Where(l => l.UserId == user.UserId)
+                .OrderByDescending(l => l.GeneratedAt)
+                .Select(l => l.Content)
+                .FirstOrDefaultAsync();
+
             // AI 편지 생성
-            var letterContent = await geminiService.GenerateDailyLetter(emotionSummary);
+            var letterContent = await geminiService.GenerateDailyLetter(emotionSummary, previousLetter);
 
             // DB에 편지 저장
             var letter = new DailyLetter
@@ -138,38 +152,96 @@ namespace MindWeatherServer.Services
         private string GenerateEmotionSummary(List<EmotionLog> logs)
         {
             var totalLogs = logs.Count;
+
+            // 가장 많이 느낀 감정
             var emotionCounts = logs.GroupBy(e => e.Emotion)
-                .ToDictionary(g => g.Key, g => g.Count());
+                .OrderByDescending(g => g.Count())
+                .Select(g => new { Emotion = GetEmotionName(g.Key), Count = g.Count() })
+                .ToList();
 
             var avgIntensity = logs.Average(e => e.Intensity);
 
-            // 가장 많이 느낀 감정 3개
-            var topEmotions = emotionCounts
-                .OrderByDescending(kvp => kvp.Value)
-                .Take(3)
-                .Select(kvp => GetEmotionName(kvp.Key))
+            // 날짜별 감정 흐름 (최근 순)
+            var dailyFlow = logs
+                .GroupBy(e => TimeZoneInfo.ConvertTimeFromUtc(e.CreatedAt, KstTimeZone).Date)
+                .OrderBy(g => g.Key)
+                .Select(g =>
+                {
+                    var dayName = GetDayOfWeekName(g.Key.DayOfWeek);
+                    var emotions = string.Join(", ", g.Select(e => $"{GetEmotionName(e.Emotion)}({e.Intensity})"));
+                    return $"{g.Key:M월 d일}({dayName}): {emotions}";
+                })
                 .ToList();
 
-            // 최근 태그 분석
+            // 감정 추세 (전반부 vs 후반부)
+            var midPoint = logs.Count / 2;
+            var recentHalf = logs.Take(midPoint).ToList();
+            var olderHalf = logs.Skip(midPoint).ToList();
+            var trendDescription = "";
+            if (recentHalf.Count > 0 && olderHalf.Count > 0)
+            {
+                var recentAvg = recentHalf.Average(e => e.Intensity);
+                var olderAvg = olderHalf.Average(e => e.Intensity);
+                var recentPositive = recentHalf.Count(e =>
+                    e.Emotion == EmotionType.Joy || e.Emotion == EmotionType.Calm || e.Emotion == EmotionType.Excitement);
+                var olderPositive = olderHalf.Count(e =>
+                    e.Emotion == EmotionType.Joy || e.Emotion == EmotionType.Calm || e.Emotion == EmotionType.Excitement);
+
+                if (recentPositive > olderPositive)
+                    trendDescription = "최근 며칠은 이전보다 긍정적인 감정이 늘었음";
+                else if (recentPositive < olderPositive)
+                    trendDescription = "최근 며칠은 이전보다 힘든 감정이 늘었음";
+                else
+                    trendDescription = "감정 흐름이 비슷하게 유지되고 있음";
+            }
+
+            // 태그 분석
             var recentTags = logs
                 .Where(e => !string.IsNullOrEmpty(e.Tags))
                 .SelectMany(e => e.Tags!.Split(','))
-                .GroupBy(t => t.Trim())
+                .Select(t => t.Trim())
+                .Where(t => t.Length > 0)
+                .GroupBy(t => t)
                 .OrderByDescending(g => g.Count())
-                .Take(3)
+                .Take(5)
                 .Select(g => g.Key)
                 .ToList();
 
-            var summary = $@"최근 7일간 {totalLogs}번의 감정 기록
-주요 감정: {string.Join(", ", topEmotions)}
-평균 감정 강도: {avgIntensity:F1}/10";
+            // 강도가 높았던 순간
+            var intenseLog = logs.OrderByDescending(e => e.Intensity).First();
+            var intenseDay = TimeZoneInfo.ConvertTimeFromUtc(intenseLog.CreatedAt, KstTimeZone);
+
+            var summary = $@"[날짜별 감정 흐름]
+{string.Join("\n", dailyFlow)}
+
+[전체 요약]
+- 7일간 총 {totalLogs}번 감정 기록
+- 가장 자주 느낀 감정: {string.Join(", ", emotionCounts.Take(3).Select(e => $"{e.Emotion}({e.Count}회)"))}
+- 감정 강도 평균: {avgIntensity:F1}/10
+- 가장 감정이 강했던 날: {intenseDay:M월 d일} {GetEmotionName(intenseLog.Emotion)} (강도 {intenseLog.Intensity}/10)
+- 추세: {trendDescription}";
 
             if (recentTags.Any())
             {
-                summary += $"\n자주 언급된 주제: {string.Join(", ", recentTags)}";
+                summary += $"\n- 이 아이의 일상 키워드: {string.Join(", ", recentTags)}";
             }
 
             return summary;
+        }
+
+        private string GetDayOfWeekName(DayOfWeek day)
+        {
+            return day switch
+            {
+                DayOfWeek.Monday => "월",
+                DayOfWeek.Tuesday => "화",
+                DayOfWeek.Wednesday => "수",
+                DayOfWeek.Thursday => "목",
+                DayOfWeek.Friday => "금",
+                DayOfWeek.Saturday => "토",
+                DayOfWeek.Sunday => "일",
+                _ => ""
+            };
         }
 
         private string GetEmotionName(EmotionType emotion)

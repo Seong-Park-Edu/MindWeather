@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
+using MindWeatherServer.Helpers;
 using MindWeatherServer.Models;
 
 namespace MindWeatherServer.Controllers
@@ -52,8 +53,13 @@ namespace MindWeatherServer.Controllers
         }
 
         [HttpGet("{userId}/insights/weekly")]
-        public async Task<IActionResult> GetWeeklyInsights(Guid userId)
+        public async Task<IActionResult> GetWeeklyInsights(
+            Guid userId,
+            [FromHeader(Name = "Authorization")] string? authorization)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
@@ -120,8 +126,13 @@ namespace MindWeatherServer.Controllers
         }
 
         [HttpGet("{userId}/streak")]
-        public async Task<IActionResult> GetUserStreak(Guid userId)
+        public async Task<IActionResult> GetUserStreak(
+            Guid userId,
+            [FromHeader(Name = "Authorization")] string? authorization)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
@@ -198,8 +209,14 @@ namespace MindWeatherServer.Controllers
         }
 
         [HttpPost("{userId}/push-token")]
-        public async Task<IActionResult> UpdatePushToken(Guid userId, [FromBody] PushTokenRequest request)
+        public async Task<IActionResult> UpdatePushToken(
+            Guid userId,
+            [FromBody] PushTokenRequest request,
+            [FromHeader(Name = "Authorization")] string? authorization)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {

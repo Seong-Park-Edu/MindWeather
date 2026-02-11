@@ -2,15 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
-    Modal,
     TouchableOpacity,
     ScrollView,
     ActivityIndicator,
-    Pressable,
-    Dimensions,
 } from 'react-native';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
 import {
     EmotionType,
     EmotionLabels,

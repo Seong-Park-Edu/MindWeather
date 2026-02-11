@@ -1,90 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, Pressable, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme, themes } from '../../contexts/ThemeContext';
-import { getEmotionStats, getComfortStats, getEmotionsForMap, getUserStreak } from '../../services/api';
-import { EmotionType, EmotionLabels, EmotionIcons } from '../../types/emotion';
+import { EmotionLabels, EmotionIcons } from '../../types/emotion';
+import { useStats, getStreakEmoji } from '../../hooks/useStats';
 
 export default function StatsScreen() {
     const router = useRouter();
-    const { user, isGuest } = useAuth();
+    const { isGuest } = useAuth();
     const { theme } = useTheme();
     const colors = themes[theme];
 
-    const [loading, setLoading] = useState(true);
-    const [todayCount, setTodayCount] = useState(0);
-    const [totalComforts, setTotalComforts] = useState(0);
-    const [dominantEmotion, setDominantEmotion] = useState<EmotionType | null>(null);
-    const [currentStreak, setCurrentStreak] = useState<number | null>(null);
-    const [totalDays, setTotalDays] = useState<number | null>(null);
-    const [longestStreak, setLongestStreak] = useState<number | null>(null);
-
-    useEffect(() => {
-        loadStats();
-        loadStreak();
-    }, []);
-
-    const loadStats = async () => {
-        try {
-            const [emotionStats, comfortStats, emotions] = await Promise.all([
-                getEmotionStats(),
-                getComfortStats(),
-                getEmotionsForMap(),
-            ]);
-            setTodayCount(emotionStats.todayCount);
-            setTotalComforts(comfortStats.totalComforts);
-
-            if (emotions && emotions.length > 0) {
-                const emotionCounts = new Map<EmotionType, number>();
-                emotions.forEach(e => {
-                    emotionCounts.set(e.emotion, (emotionCounts.get(e.emotion) || 0) + 1);
-                });
-
-                let maxCount = 0;
-                let domEmotion: EmotionType = EmotionType.Calm;
-
-                emotionCounts.forEach((count, emotion) => {
-                    if (count > maxCount) {
-                        maxCount = count;
-                        domEmotion = emotion;
-                    }
-                });
-                setDominantEmotion(domEmotion);
-            }
-        } catch (error) {
-            console.error('Failed to load stats:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadStreak = async () => {
-        if (!user || isGuest || user.id === 'guest-user') {
-            setCurrentStreak(null);
-            setTotalDays(null);
-            return;
-        }
-        try {
-            const streak = await getUserStreak(user.id);
-            setCurrentStreak(streak.currentStreak);
-            setTotalDays(streak.totalDays);
-            setLongestStreak(streak.longestStreak);
-        } catch (error) {
-            console.error('Failed to load streak:', error);
-            setCurrentStreak(null);
-            setTotalDays(null);
-            setLongestStreak(null);
-        }
-    };
-
-    const getStreakEmoji = (days: number): string => {
-        if (days === 0) return '💤';
-        if (days < 7) return '🔥';
-        if (days < 30) return '🔥🔥';
-        if (days < 100) return '🔥🔥🔥';
-        return '🏆';
-    };
+    const {
+        todayCount,
+        totalComforts,
+        dominantEmotion,
+        currentStreak,
+        totalDays,
+        longestStreak,
+        loading,
+    } = useStats();
 
     return (
         <View style={styles.container}>

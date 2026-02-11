@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
 using MindWeatherServer.DTOs;
+using MindWeatherServer.Helpers;
 using MindWeatherServer.Hubs;
 using MindWeatherServer.Models;
 
@@ -24,6 +26,7 @@ namespace MindWeatherServer.Controllers
         // 1. 감정 기록하기 (POST /api/emotions)
         // POST: api/Emotions
         [HttpPost]
+        [EnableRateLimiting("write")]
         public async Task<IActionResult> PostEmotion([FromBody] CreateEmotionRequest request)
         {
             try
@@ -168,9 +171,12 @@ namespace MindWeatherServer.Controllers
         public async Task<IActionResult> GetMyEmotions(
             [FromQuery] Guid userId,
             [FromQuery] int year,
-            [FromQuery] int month
-        )
+            [FromQuery] int month,
+            [FromHeader(Name = "Authorization")] string? authorization = null)
         {
+            var authError = JwtHelper.ValidateUserId(authorization, userId);
+            if (authError != null) return authError;
+
             var startDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
             var endDate = startDate.AddMonths(1);
 

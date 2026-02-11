@@ -23,6 +23,7 @@ export default function RootLayout() {
                             <Stack.Screen name="board" />
                             <Stack.Screen name="garden" />
                             <Stack.Screen name="letters" />
+                            <Stack.Screen name="settings" />
                             <Stack.Screen name="modal" options={{ presentation: 'transparentModal', headerShown: false, animation: 'fade' }} />
                         </Stack>
                         <StatusBar style="light" />

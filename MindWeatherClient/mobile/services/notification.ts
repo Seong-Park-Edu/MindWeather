@@ -82,7 +82,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
  */
 export async function savePushTokenToServer(userId: string, token: string): Promise<boolean> {
     try {
-        const response = await api.post(`/users/${userId}/push-token`, { token });
+        const response = await api.post(`/users/${userId}/push-token`, { token }, true);
         console.log('Push token saved to server successfully:', response.data);
         return true;
     } catch (error) {

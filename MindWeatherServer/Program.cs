@@ -1,6 +1,9 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
 using MindWeatherServer.Hubs;
+using MindWeatherServer.Middleware;
 using MindWeatherServer.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,20 +52,51 @@ builder.Services.AddHostedService<DailyLetterScheduler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// 6. Rate Limiting 설정
+builder.Services.AddRateLimiter(options =>
+{
+    // 전역 기본: IP당 분당 100회
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
+    // 쓰기 작업용: IP당 분당 15회 (감정 기록, 위로 메시지, 게시글 등)
+    options.AddFixedWindowLimiter("write", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 15;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.QueueLimit = 0;
+    });
+
+    options.RejectionStatusCode = 429;
+});
+
 var app = builder.Build();
 
-// 4. 디버깅을 위해 항상 개발자 페이지/Swagger 켜기 (배포 후 에러 확인용)
-// if (app.Environment.IsDevelopment())
-// {
-app.UseDeveloperExceptionPage();
+// 개발 환경에서만 상세 에러 페이지 노출
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+
+// Swagger는 항상 활성화 (API 문서용)
 app.UseSwagger();
 app.UseSwaggerUI();
-
-// }
 
 app.UseHttpsRedirection();
 
 app.UseCors("AllowReactApp");
+
+// 차단된 사용자 요청 거부
+app.UseMiddleware<BannedUserMiddleware>();
+
+app.UseRateLimiter();
 
 app.UseAuthorization();
 
@@ -78,10 +112,10 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<AppDbContext>();
 
-        // 1. 일반 마이그레이션 시도 (삭제: 불안정한 환경에서 크래시 유발)
-        // Console.WriteLine("⏳ Attempting Database Migration...");
-        // context.Database.Migrate();
-        // Console.WriteLine("✅ Database migration completed successfully.");
+        // 자동 마이그레이션 실행
+        Console.WriteLine("⏳ Attempting Database Migration...");
+        context.Database.Migrate();
+        Console.WriteLine("✅ Database migration completed successfully.");
 
         // 2. [긴급] IsAdmin 컬럼 강제 확인 및 추가 (마이그레이션 실패 대비)
         // Npgsql은 PostgreSQL용이므로 SQL 문법이 다름

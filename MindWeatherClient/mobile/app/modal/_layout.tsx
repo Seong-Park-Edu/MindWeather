@@ -15,6 +15,7 @@ export default function ModalLayout() {
             <Stack.Screen name="inbox" />
             <Stack.Screen name="comfort" />
             <Stack.Screen name="stats" />
+            <Stack.Screen name="compose" />
         </Stack>
     );
 }
