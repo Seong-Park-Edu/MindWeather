@@ -2,18 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme, themes } from '../contexts/ThemeContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5015/api';
-
-interface Letter {
-    id: number;
-    content: string;
-    generatedAt: string;
-    isRead: boolean;
-    readAt: string | null;
-    analyzedFrom: string;
-    analyzedTo: string;
-}
+import { getLetters, markLetterAsRead, type Letter } from '../services/api';
 
 interface LettersModalProps {
     onClose: () => void;
@@ -36,11 +25,7 @@ export function LettersModal({ onClose }: LettersModalProps) {
         if (!user) return;
 
         try {
-            const response = await fetch(`${API_URL}/letters/${user.id}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch letters');
-            }
-            const data = await response.json();
+            const data = await getLetters(user.id);
             setLetters(data);
         } catch (error) {
             console.error('Failed to fetch letters:', error);
@@ -52,17 +37,9 @@ export function LettersModal({ onClose }: LettersModalProps) {
     const openLetter = async (letter: Letter) => {
         setSelectedLetter(letter);
 
-        // Mark as read if not already
-        if (!letter.isRead) {
+        if (!letter.isRead && user) {
             try {
-                const response = await fetch(`${API_URL}/letters/${letter.id}/read?userId=${user?.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                if (!response.ok) {
-                    throw new Error('Failed to mark letter as read');
-                }
-                // Update local state
+                await markLetterAsRead(letter.id, user.id);
                 setLetters(prev =>
                     prev.map(l =>
                         l.id === letter.id ? { ...l, isRead: true, readAt: new Date().toISOString() } : l

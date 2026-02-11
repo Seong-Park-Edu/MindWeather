@@ -296,3 +296,31 @@ export async function getWeeklyInsights(userId: string): Promise<WeeklyInsightsD
     }
     return response.json();
 }
+
+// Letters API
+export interface Letter {
+    id: number;
+    content: string;
+    generatedAt: string;
+    isRead: boolean;
+    readAt: string | null;
+    analyzedFrom: string;
+    analyzedTo: string;
+}
+
+export async function getLetters(userId: string): Promise<Letter[]> {
+    const headers = await authHeaders();
+    const response = await fetch(`${API_BASE_URL}/letters/${userId}`, { headers });
+    if (!response.ok) {
+        throw new Error('Failed to fetch letters');
+    }
+    return response.json();
+}
+
+export async function markLetterAsRead(letterId: number, userId: string): Promise<void> {
+    const headers = await authHeaders();
+    await fetch(`${API_BASE_URL}/letters/${letterId}/read?userId=${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...headers },
+    });
+}
