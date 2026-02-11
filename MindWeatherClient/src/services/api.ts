@@ -13,9 +13,22 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5015/api'
 // Supabase 세션에서 JWT 토큰을 가져오는 헬퍼
 async function getAuthToken(): Promise<string | null> {
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session?.access_token ?? null;
-    } catch {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+            console.error('[authHeaders] getSession error:', error);
+            return null;
+        }
+        if (!session) {
+            console.warn('[authHeaders] No session found');
+            return null;
+        }
+        if (!session.access_token) {
+            console.warn('[authHeaders] Session exists but no access_token');
+            return null;
+        }
+        return session.access_token;
+    } catch (e) {
+        console.error('[authHeaders] Exception:', e);
         return null;
     }
 }
@@ -26,6 +39,7 @@ async function authHeaders(): Promise<Record<string, string>> {
     if (token) {
         return { 'Authorization': `Bearer ${token}` };
     }
+    console.warn('[authHeaders] No token available, request will be unauthenticated');
     return {};
 }
 
