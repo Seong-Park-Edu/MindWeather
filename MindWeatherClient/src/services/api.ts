@@ -6,8 +6,28 @@ import type {
     StatsResponse,
     ComfortStatsResponse,
 } from '../types/emotion';
+import { supabase } from '../lib/supabase';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5015/api';
+
+// Supabase 세션에서 JWT 토큰을 가져오는 헬퍼
+async function getAuthToken(): Promise<string | null> {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        return session?.access_token ?? null;
+    } catch {
+        return null;
+    }
+}
+
+// 인증 헤더를 생성하는 헬퍼
+async function authHeaders(): Promise<Record<string, string>> {
+    const token = await getAuthToken();
+    if (token) {
+        return { 'Authorization': `Bearer ${token}` };
+    }
+    return {};
+}
 
 // Notifications API
 export interface NotificationCount {
@@ -19,7 +39,8 @@ export interface NotificationCount {
 export async function getNotificationCount(userId: string, since?: string): Promise<NotificationCount> {
     try {
         const params = since ? `?since=${encodeURIComponent(since)}` : '';
-        const response = await fetch(`${API_BASE_URL}/comfort-messages/notifications/${userId}${params}`);
+        const headers = await authHeaders();
+        const response = await fetch(`${API_BASE_URL}/comfort-messages/notifications/${userId}${params}`, { headers });
 
         if (!response.ok) {
             throw new Error('Failed to fetch notification count');
@@ -83,7 +104,8 @@ export async function sendComfortMessage(request: SendMessageRequest): Promise<{
 }
 
 export async function getReceivedMessages(userId: string): Promise<MessageResponse[]> {
-    const response = await fetch(`${API_BASE_URL}/comfort-messages/received/${userId}`);
+    const headers = await authHeaders();
+    const response = await fetch(`${API_BASE_URL}/comfort-messages/received/${userId}`, { headers });
 
     if (!response.ok) {
         throw new Error('Failed to fetch messages');
@@ -93,7 +115,8 @@ export async function getReceivedMessages(userId: string): Promise<MessageRespon
 }
 
 export async function getSentMessages(userId: string): Promise<MessageResponse[]> {
-    const response = await fetch(`${API_BASE_URL}/comfort-messages/sent/${userId}`);
+    const headers = await authHeaders();
+    const response = await fetch(`${API_BASE_URL}/comfort-messages/sent/${userId}`, { headers });
 
     if (!response.ok) {
         throw new Error('Failed to fetch sent messages');
@@ -103,8 +126,10 @@ export async function getSentMessages(userId: string): Promise<MessageResponse[]
 }
 
 export async function thankMessage(messageId: number, userId: string): Promise<{ message: string }> {
+    const headers = await authHeaders();
     const response = await fetch(`${API_BASE_URL}/comfort-messages/${messageId}/thank?userId=${userId}`, {
         method: 'PUT',
+        headers,
     });
 
     if (!response.ok) {
@@ -194,7 +219,8 @@ export async function broadcastComfort(
 
 // 내 감정 기록 가져오기
 export async function getMyEmotions(userId: string, year: number, month: number): Promise<EmotionResponse[]> {
-    const response = await fetch(`${API_BASE_URL}/emotions/my?userId=${userId}&year=${year}&month=${month}`);
+    const headers = await authHeaders();
+    const response = await fetch(`${API_BASE_URL}/emotions/my?userId=${userId}&year=${year}&month=${month}`, { headers });
     if (!response.ok) {
         throw new Error('Failed to fetch my emotions');
     }
@@ -242,7 +268,8 @@ export interface StreakData {
 }
 
 export async function getUserStreak(userId: string): Promise<StreakData> {
-    const response = await fetch(`${API_BASE_URL}/emotions/streak/${userId}`);
+    const headers = await authHeaders();
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/streak`, { headers });
     if (!response.ok) {
         throw new Error('Failed to fetch streak');
     }
@@ -262,7 +289,8 @@ export interface WeeklyInsightsData {
 }
 
 export async function getWeeklyInsights(userId: string): Promise<WeeklyInsightsData> {
-    const response = await fetch(`${API_BASE_URL}/emotions/insights/${userId}`);
+    const headers = await authHeaders();
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/insights/weekly`, { headers });
     if (!response.ok) {
         throw new Error('Failed to fetch weekly insights');
     }
