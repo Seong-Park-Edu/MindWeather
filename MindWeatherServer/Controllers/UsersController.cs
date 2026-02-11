@@ -139,13 +139,19 @@ namespace MindWeatherServer.Controllers
                 return NotFound("User not found");
             }
 
-            // Get all emotion logs for this user, ordered by date descending
-            var emotionLogs = await _context.EmotionLogs
+            // KST 변환을 위해 raw timestamp를 가져온 후 메모리에서 날짜 변환
+            var kstTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time");
+            var rawTimestamps = await _context.EmotionLogs
                 .Where(e => e.UserId == userId)
                 .OrderByDescending(e => e.CreatedAt)
-                .Select(e => e.CreatedAt.Date)
-                .Distinct()
+                .Select(e => e.CreatedAt)
                 .ToListAsync();
+
+            // UTC → KST 변환 후 날짜 추출
+            var emotionLogs = rawTimestamps
+                .Select(t => TimeZoneInfo.ConvertTimeFromUtc(t, kstTimeZone).Date)
+                .Distinct()
+                .ToList();
 
             if (emotionLogs.Count == 0)
             {
@@ -157,9 +163,10 @@ namespace MindWeatherServer.Controllers
                 });
             }
 
-            // Calculate current streak
+            // Calculate current streak (KST 기준)
             int currentStreak = 0;
-            var today = DateTime.UtcNow.Date;
+            var nowKst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, kstTimeZone);
+            var today = nowKst.Date;
             var yesterday = today.AddDays(-1);
 
             // Check if there's an entry today or yesterday (to maintain streak)

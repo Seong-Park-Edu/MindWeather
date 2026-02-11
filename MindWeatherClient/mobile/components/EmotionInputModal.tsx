@@ -5,6 +5,7 @@ import {
     TouchableOpacity,
     ScrollView,
     ActivityIndicator,
+    Alert,
 } from 'react-native';
 import {
     EmotionType,
@@ -69,6 +70,7 @@ export function EmotionInputModal({ onClose, onSuccess }: EmotionInputModalProps
             }, 2000);
         } catch (error) {
             console.error('Failed to submit emotion:', error);
+            Alert.alert('기록 실패', '감정 기록에 실패했습니다. 다시 시도해주세요.');
         } finally {
             setIsSubmitting(false);
         }

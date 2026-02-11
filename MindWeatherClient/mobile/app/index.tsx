@@ -45,6 +45,7 @@ export default function MainScreen() {
     // Data state
     const [emotions, setEmotions] = useState<EmotionResponse[]>([]);
     const [loading, setLoading] = useState(true);
+    const [mapError, setMapError] = useState(false);
 
     // Modal states
     const [selectedCluster, setSelectedCluster] = useState<RegionCluster | null>(null);
@@ -57,10 +58,13 @@ export default function MainScreen() {
     // Fetch map data
     const fetchData = useCallback(async () => {
         try {
+            setMapError(false);
+            setLoading(true);
             const data = await getEmotionsForMap();
             setEmotions(data);
         } catch (error) {
             console.error('Failed to fetch map data', error);
+            setMapError(true);
         } finally {
             setLoading(false);
         }
@@ -246,6 +250,27 @@ export default function MainScreen() {
                         {loading ? (
                             <View className="flex-1 justify-center items-center">
                                 <ActivityIndicator size="large" color="#A78BFA" />
+                            </View>
+                        ) : mapError ? (
+                            <View className="flex-1 justify-center items-center px-6">
+                                <Text style={{ fontSize: 40, marginBottom: 12 }}>😥</Text>
+                                <Text style={{ color: colors.text.primary, fontSize: 16, fontWeight: '600', marginBottom: 6 }}>
+                                    지도 데이터를 불러오지 못했어요
+                                </Text>
+                                <Text style={{ color: colors.text.secondary, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+                                    네트워크 연결을 확인하고 다시 시도해주세요
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={fetchData}
+                                    style={{
+                                        backgroundColor: '#7C3AED',
+                                        paddingHorizontal: 24,
+                                        paddingVertical: 10,
+                                        borderRadius: 20,
+                                    }}
+                                >
+                                    <Text style={{ color: '#fff', fontWeight: '600' }}>다시 시도</Text>
+                                </TouchableOpacity>
                             </View>
                         ) : (
                             <KoreaMap

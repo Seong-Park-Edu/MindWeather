@@ -108,33 +108,47 @@ namespace MindWeatherServer.Controllers
         [EnableRateLimiting("write")]
         public async Task<IActionResult> LikeMessage(int id, [FromBody] LikeRequest request)
         {
-            var message = await _context.PublicComfortMessages.FindAsync(id);
-            if (message == null)
-                return NotFound();
-
-            var existingLike = await _context.PublicMessageLikes
-                .FirstOrDefaultAsync(l => l.MessageId == id && l.UserId == request.UserId);
-
-            if (existingLike != null)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                // 이미 좋아요 → 취소
-                _context.PublicMessageLikes.Remove(existingLike);
-                message.LikeCount = Math.Max(0, message.LikeCount - 1);
-                await _context.SaveChangesAsync();
-                return Ok(new { likeCount = message.LikeCount, liked = false });
-            }
-            else
-            {
-                // 새 좋아요
-                _context.PublicMessageLikes.Add(new PublicMessageLike
+                var message = await _context.PublicComfortMessages.FindAsync(id);
+                if (message == null)
+                    return NotFound();
+
+                var existingLike = await _context.PublicMessageLikes
+                    .FirstOrDefaultAsync(l => l.MessageId == id && l.UserId == request.UserId);
+
+                bool liked;
+                if (existingLike != null)
                 {
-                    MessageId = id,
-                    UserId = request.UserId,
-                    CreatedAt = DateTime.UtcNow,
-                });
-                message.LikeCount++;
+                    _context.PublicMessageLikes.Remove(existingLike);
+                    liked = false;
+                }
+                else
+                {
+                    _context.PublicMessageLikes.Add(new PublicMessageLike
+                    {
+                        MessageId = id,
+                        UserId = request.UserId,
+                        CreatedAt = DateTime.UtcNow,
+                    });
+                    liked = true;
+                }
+
                 await _context.SaveChangesAsync();
-                return Ok(new { likeCount = message.LikeCount, liked = true });
+
+                // race condition 방지: 실제 테이블에서 카운트 재계산
+                message.LikeCount = await _context.PublicMessageLikes
+                    .CountAsync(l => l.MessageId == id);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+                return Ok(new { likeCount = message.LikeCount, liked });
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
             }
         }
 

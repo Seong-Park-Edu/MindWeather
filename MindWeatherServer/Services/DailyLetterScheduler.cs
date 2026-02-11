@@ -94,6 +94,17 @@ namespace MindWeatherServer.Services
             PushNotificationService pushService,
             User user)
         {
+            // 오늘 이미 편지가 생성되었는지 확인 (서버 재시작 등으로 인한 중복 방지)
+            var todayStartUtc = TimeZoneInfo.ConvertTimeToUtc(
+                TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, KstTimeZone).Date, KstTimeZone);
+            var alreadyGenerated = await context.DailyLetters
+                .AnyAsync(l => l.UserId == user.UserId && l.GeneratedAt >= todayStartUtc);
+            if (alreadyGenerated)
+            {
+                _logger.LogInformation($"Letter already generated today for user {user.UserId}, skipping");
+                return;
+            }
+
             // 최근 7일간의 감정 데이터 분석
             var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
             var emotionLogs = await context.EmotionLogs

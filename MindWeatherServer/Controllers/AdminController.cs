@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
+using MindWeatherServer.Helpers;
 using MindWeatherServer.Models;
 
 namespace MindWeatherServer.Controllers
@@ -29,14 +30,11 @@ namespace MindWeatherServer.Controllers
             try
             {
                 // 1. 관리자 인증
-                if (string.IsNullOrEmpty(authorization) || !authorization.StartsWith("Bearer "))
-                    return Unauthorized("토큰 없음");
+                var currentUserId = JwtHelper.GetUserIdFromHeader(authorization);
+                if (currentUserId == null)
+                    return Unauthorized("인증이 필요합니다.");
 
-                var userIdString = GetUserIdFromToken(authorization);
-                if (userIdString == null || !Guid.TryParse(userIdString, out var currentUserId))
-                    return Unauthorized("토큰 오류");
-
-                var currentUser = await _db.Users.FindAsync(currentUserId);
+                var currentUser = await _db.Users.FindAsync(currentUserId.Value);
                 if (currentUser == null || !currentUser.IsAdmin)
                     return StatusCode(403, "관리자 권한이 없습니다.");
 
@@ -113,27 +111,13 @@ namespace MindWeatherServer.Controllers
             try 
             {
                  // 1. Authenticate Admin
-                if (string.IsNullOrEmpty(authorization) || !authorization.StartsWith("Bearer "))
-                {
-                    return Unauthorized("Missing or invalid Authorization header");
-                }
+                var currentUserId = JwtHelper.GetUserIdFromHeader(authorization);
+                if (currentUserId == null)
+                    return Unauthorized("인증이 필요합니다.");
 
-                var userIdString = GetUserIdFromToken(authorization);
-                if (userIdString == null || !Guid.TryParse(userIdString, out var currentUserId))
-                {
-                    return Unauthorized("Invalid token");
-                }
-
-                var currentUser = await _db.Users.FindAsync(currentUserId);
-                if (currentUser == null)
-                {
-                    return StatusCode(403, "User not found in the database. Please re-login.");
-                }
-
-                if (!currentUser.IsAdmin)
-                {
-                    return StatusCode(403, "Forbidden: You are not an admin.");
-                }
+                var currentUser = await _db.Users.FindAsync(currentUserId.Value);
+                if (currentUser == null || !currentUser.IsAdmin)
+                    return StatusCode(403, "관리자 권한이 없습니다.");
 
                 var cutoffTime = DateTime.UtcNow.AddHours(-24);
 
@@ -164,22 +148,6 @@ namespace MindWeatherServer.Controllers
             }
         }
 
-        // Helper to extract JWT payload without signature verification (since we trust Supabase)
-        private string? GetUserIdFromToken(string authorization)
-        {
-            try
-            {
-                var token = authorization.Substring("Bearer ".Length).Trim();
-                var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-                var jwtToken = handler.ReadJwtToken(token);
-                // Supabase 'sub' claim is the UUID
-                return jwtToken.Subject; 
-            }
-            catch
-            {
-                return null;
-            }
-        }
     }
 
     // DTOs

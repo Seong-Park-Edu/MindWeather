@@ -125,10 +125,12 @@ namespace MindWeatherServer.Services
                 var jsonContent = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                var response = await _httpClient.PostAsync(
-                    $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={apiKey}",
-                    content
-                );
+                var request = new HttpRequestMessage(HttpMethod.Post,
+                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent");
+                request.Headers.Add("x-goog-api-key", apiKey);
+                request.Content = content;
+
+                var response = await _httpClient.SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -216,10 +218,12 @@ namespace MindWeatherServer.Services
                 var jsonContent = JsonSerializer.Serialize(requestBody);
                 var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                var response = await _httpClient.PostAsync(
-                    $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={apiKey}",
-                    httpContent
-                );
+                var modRequest = new HttpRequestMessage(HttpMethod.Post,
+                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent");
+                modRequest.Headers.Add("x-goog-api-key", apiKey);
+                modRequest.Content = httpContent;
+
+                var response = await _httpClient.SendAsync(modRequest);
 
                 if (!response.IsSuccessStatusCode)
                 {
