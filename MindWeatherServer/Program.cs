@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -30,9 +31,13 @@ var supabaseIssuer = !string.IsNullOrWhiteSpace(supabaseUrl)
     ? $"{supabaseUrl.TrimEnd('/')}/auth/v1"
     : null;
 var supabaseAudience = NormalizeConfigValue(
-    builder.Configuration["Supabase:Audience"]
-    ?? Environment.GetEnvironmentVariable("SUPABASE_AUDIENCE")
+    Environment.GetEnvironmentVariable("SUPABASE_AUDIENCE")
+    ?? builder.Configuration["Supabase:Audience"]
     ?? "authenticated"
+);
+
+Console.WriteLine(
+    $"[AuthConfig] Supabase issuer: {supabaseIssuer ?? "(null)"}, audience: {supabaseAudience}"
 );
 
 var connectionString =
@@ -126,9 +131,11 @@ builder
         if (!string.IsNullOrWhiteSpace(supabaseIssuer))
         {
             options.Authority = supabaseIssuer;
+            options.MetadataAddress = $"{supabaseIssuer.TrimEnd('/')}/.well-known/openid-configuration";
         }
 
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        options.RefreshOnIssuerKeyNotFound = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = !string.IsNullOrWhiteSpace(supabaseIssuer),
@@ -148,12 +155,41 @@ builder
                 var logger = context.HttpContext.RequestServices
                     .GetRequiredService<ILoggerFactory>()
                     .CreateLogger("JwtAuth");
+                var authorization = context.Request.Headers.Authorization.ToString();
+                var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                    ? authorization["Bearer ".Length..].Trim()
+                    : string.Empty;
+                var tokenIssuer = "(unknown)";
+                var tokenKid = "(unknown)";
+
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    try
+                    {
+                        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+                        tokenIssuer = string.IsNullOrWhiteSpace(jwt.Issuer) ? "(empty)" : jwt.Issuer;
+                        tokenKid = string.IsNullOrWhiteSpace(jwt.Header.Kid)
+                            ? "(empty)"
+                            : jwt.Header.Kid;
+                    }
+                    catch (Exception parseEx)
+                    {
+                        logger.LogWarning(
+                            parseEx,
+                            "Failed to parse JWT token for auth diagnostics. Path: {Path}",
+                            context.HttpContext.Request.Path
+                        );
+                    }
+                }
+
                 logger.LogWarning(
                     context.Exception,
-                    "JWT auth failed. Path: {Path}, Issuer: {Issuer}, Audience: {Audience}",
+                    "JWT auth failed. Path: {Path}, ConfigIssuer: {ConfigIssuer}, ConfigAudience: {ConfigAudience}, TokenIssuer: {TokenIssuer}, TokenKid: {TokenKid}",
                     context.HttpContext.Request.Path,
                     supabaseIssuer ?? "(null)",
-                    supabaseAudience
+                    supabaseAudience,
+                    tokenIssuer,
+                    tokenKid
                 );
                 return Task.CompletedTask;
             }
