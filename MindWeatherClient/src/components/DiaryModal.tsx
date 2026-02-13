@@ -34,7 +34,7 @@ export function DiaryModal({ onClose }: DiaryModalProps) {
     const loadEmotions = async () => {
         if (!userId) return;
         try {
-            const data = await getMyEmotions(userId, year, month);
+            const data = await getMyEmotions(year, month);
             setEmotions(data);
         } catch (error) {
             console.error("Failed to load emotions:", error);

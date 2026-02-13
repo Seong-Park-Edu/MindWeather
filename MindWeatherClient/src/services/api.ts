@@ -234,7 +234,7 @@ export async function broadcastComfort(
 }
 
 // 내 감정 기록 가져오기
-export async function getMyEmotions(userId: string, year: number, month: number): Promise<EmotionResponse[]> {
+export async function getMyEmotions(year: number, month: number): Promise<EmotionResponse[]> {
     const headers = await authHeaders();
     const response = await fetch(`${API_BASE_URL}/emotions/my?year=${year}&month=${month}`, { headers });
     if (!response.ok) {

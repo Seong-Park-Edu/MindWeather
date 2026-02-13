@@ -86,7 +86,7 @@ export function GardenModal({ onClose }: GardenModalProps) {
         try {
             setLoading(true);
             const now = new Date();
-            const data = await getMyEmotions(user.id, now.getFullYear(), now.getMonth() + 1);
+            const data = await getMyEmotions(now.getFullYear(), now.getMonth() + 1);
             setEmotions(data);
 
             const savedState = localStorage.getItem(`garden_state_${user.id}`);
