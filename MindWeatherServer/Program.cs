@@ -10,11 +10,20 @@ using MindWeatherServer.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var supabaseUrl =
-    builder.Configuration["Supabase:Url"] ?? Environment.GetEnvironmentVariable("SUPABASE_URL");
+static string NormalizeConfigValue(string? value) =>
+    string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().Trim('"', '\'');
+
+var supabaseUrl = NormalizeConfigValue(
+    builder.Configuration["Supabase:Url"] ?? Environment.GetEnvironmentVariable("SUPABASE_URL")
+);
 var supabaseIssuer = !string.IsNullOrWhiteSpace(supabaseUrl)
     ? $"{supabaseUrl.TrimEnd('/')}/auth/v1"
     : null;
+var supabaseAudience = NormalizeConfigValue(
+    builder.Configuration["Supabase:Audience"]
+    ?? Environment.GetEnvironmentVariable("SUPABASE_AUDIENCE")
+    ?? "authenticated"
+);
 
 var connectionString =
     Environment.GetEnvironmentVariable("DATABASE_URL")
@@ -113,15 +122,31 @@ builder
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = !string.IsNullOrWhiteSpace(supabaseIssuer),
-            ValidIssuer = supabaseIssuer,
+            ValidIssuers = string.IsNullOrWhiteSpace(supabaseIssuer)
+                ? null
+                : new[] { supabaseIssuer, $"{supabaseIssuer}/" },
             ValidateAudience = true,
-            ValidAudience =
-                builder.Configuration["Supabase:Audience"]
-                ?? Environment.GetEnvironmentVariable("SUPABASE_AUDIENCE")
-                ?? "authenticated",
+            ValidAudiences = new[] { supabaseAudience, "authenticated", "anon", "service_role" },
             ValidateLifetime = true,
             NameClaimType = "sub",
             RoleClaimType = "role",
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtAuth");
+                logger.LogWarning(
+                    context.Exception,
+                    "JWT auth failed. Path: {Path}, Issuer: {Issuer}, Audience: {Audience}",
+                    context.HttpContext.Request.Path,
+                    supabaseIssuer ?? "(null)",
+                    supabaseAudience
+                );
+                return Task.CompletedTask;
+            }
         };
     });
 
