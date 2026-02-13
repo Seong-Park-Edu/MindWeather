@@ -46,6 +46,9 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connect
 
 builder.Services.AddCors(options =>
 {
+    static string NormalizeOrigin(string origin) =>
+        origin.Trim().Trim('"', '\'').TrimEnd('/');
+
     var developmentOrigins = new[]
     {
         "http://localhost:5173",
@@ -54,15 +57,27 @@ builder.Services.AddCors(options =>
         "capacitor://localhost",
         "http://localhost",
     };
-    var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+    var configuredOrigins =
+        builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?? Array.Empty<string>();
     var envOriginsRaw = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
     var envOrigins = string.IsNullOrWhiteSpace(envOriginsRaw)
         ? Array.Empty<string>()
         : envOriginsRaw
             .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
     var origins = builder.Environment.IsDevelopment()
         ? developmentOrigins
-        : (envOrigins.Length > 0 ? envOrigins : (configuredOrigins ?? Array.Empty<string>()));
+            .Select(NormalizeOrigin)
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray()
+        : configuredOrigins
+            .Concat(envOrigins)
+            .Select(NormalizeOrigin)
+            .Where(o => !string.IsNullOrWhiteSpace(o))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     if (!builder.Environment.IsDevelopment() && origins.Length == 0)
     {
