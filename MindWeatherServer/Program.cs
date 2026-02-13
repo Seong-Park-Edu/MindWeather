@@ -13,8 +13,18 @@ var builder = WebApplication.CreateBuilder(args);
 static string NormalizeConfigValue(string? value) =>
     string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().Trim('"', '\'');
 
-var supabaseUrl = NormalizeConfigValue(
-    builder.Configuration["Supabase:Url"] ?? Environment.GetEnvironmentVariable("SUPABASE_URL")
+static string NormalizeSupabaseProjectUrl(string? value)
+{
+    var normalized = NormalizeConfigValue(value).TrimEnd('/');
+    const string authPath = "/auth/v1";
+    return normalized.EndsWith(authPath, StringComparison.OrdinalIgnoreCase)
+        ? normalized[..^authPath.Length]
+        : normalized;
+}
+
+var supabaseUrl = NormalizeSupabaseProjectUrl(
+    Environment.GetEnvironmentVariable("SUPABASE_URL")
+    ?? builder.Configuration["Supabase:Url"]
 );
 var supabaseIssuer = !string.IsNullOrWhiteSpace(supabaseUrl)
     ? $"{supabaseUrl.TrimEnd('/')}/auth/v1"
