@@ -6,8 +6,11 @@ namespace MindWeatherServer.Helpers
     {
         public static Guid? GetUserIdFromClaimsPrincipal(ClaimsPrincipal user)
         {
-            var sub = user.FindFirst("sub")?.Value;
-            return Guid.TryParse(sub, out var userId) ? userId : null;
+            var subjectClaim = user.FindFirst("sub")?.Value
+                ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? user.FindFirst("nameidentifier")?.Value;
+
+            return Guid.TryParse(subjectClaim, out var userId) ? userId : null;
         }
     }
 }
