@@ -59,20 +59,40 @@ namespace MindWeatherServer.Services
                 var previousLetterSection = "";
                 if (!string.IsNullOrEmpty(previousLetter))
                 {
-                    // 이전 편지에서 앞부분만 전달 (토큰 절약)
-                    var snippet = previousLetter.Length > 150
-                        ? previousLetter.Substring(0, 150) + "..."
-                        : previousLetter;
                     previousLetterSection = $@"
 
 **어제 보낸 편지 (절대 비슷하게 쓰지 마세요):**
-""{snippet}""
-→ 위 편지와 다른 표현, 다른 시작, 다른 관점으로 써주세요.";
+""{previousLetter}""
+→ 위 편지와 완전히 다른 표현, 다른 첫 문장, 다른 관점, 다른 구조로 써주세요.
+→ 같은 단어나 비유를 반복하지 마세요.";
                 }
+
+                // 매일 다른 편지를 위한 랜덤 창작 방향
+                var creativeAngles = new[]
+                {
+                    "오늘은 계절의 풍경을 빗대어 마음을 표현해주세요.",
+                    "오늘은 어릴 적 추억을 떠올리며 써주세요.",
+                    "오늘은 함께 밥을 먹는 상상을 하며 써주세요.",
+                    "오늘은 날씨 이야기로 자연스럽게 시작해주세요.",
+                    "오늘은 아이가 잠들기 전 이불을 덮어주는 마음으로 써주세요.",
+                    "오늘은 멀리서 아이의 뒷모습을 바라보는 심정으로 써주세요.",
+                    "오늘은 오래된 편지지에 펜으로 천천히 적는 느낌으로 써주세요.",
+                    "오늘은 작은 선물을 건네는 마음으로 시작해주세요.",
+                    "오늘은 산책하다 아이 생각이 난 듯 써주세요.",
+                    "오늘은 아이가 좋아하는 음식을 만들어주고 싶은 마음으로 써주세요.",
+                    "오늘은 창밖을 보다가 문득 아이가 떠올라서 쓰는 편지입니다.",
+                    "오늘은 아이의 어린 시절 한 장면을 떠올리며 시작해주세요.",
+                    "오늘은 새벽에 잠이 안 와서 쓰는 편지처럼 써주세요.",
+                    "오늘은 아이와 나란히 걷는 상상을 하며 써주세요.",
+                };
+                var random = new Random();
+                var todayAngle = creativeAngles[random.Next(creativeAngles.Length)];
 
                 var prompt = $@"당신은 세상에서 가장 다정한 어머니입니다.
 자녀가 세상을 살아가면서 겪는 감정의 파도를 멀리서 조용히 지켜보고 있었습니다.
-오늘은 {kstNow:M월 d일} {dayOfWeek}, {season}입니다. 그 아이에게 손편지를 씁니다.
+오늘은 {kstNow:yyyy년 M월 d일} {dayOfWeek}, {season}입니다. 그 아이에게 손편지를 씁니다.
+
+**오늘의 창작 방향:** {todayAngle}
 
 **이 아이의 최근 마음 상태:**
 {emotionSummary}
