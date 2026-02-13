@@ -44,7 +44,7 @@ export function InboxModal({ onClose }: InboxModalProps) {
 
         setThankingId(messageId);
         try {
-            await thankMessage(messageId, user.id);
+            await thankMessage(messageId);
 
             // Update local state to show thanked immediately
             setMessages(prev => prev.map(m =>

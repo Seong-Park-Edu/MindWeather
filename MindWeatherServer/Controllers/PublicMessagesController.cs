@@ -1,11 +1,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
 using MindWeatherServer.DTOs;
+using MindWeatherServer.Helpers;
 using MindWeatherServer.Models;
 using MindWeatherServer.Services;
 
@@ -24,23 +26,26 @@ namespace MindWeatherServer.Controllers
             _geminiService = geminiService;
         }
 
-        // 1. 공용 위로글 게시 (POST /api/public-messages)
         [HttpPost]
+        [Authorize]
         [EnableRateLimiting("write")]
-        public async Task<IActionResult> PostPublicMessage(
-            [FromBody] CreatePublicMessageRequest request
-        )
+        public async Task<IActionResult> PostPublicMessage([FromBody] CreatePublicMessageRequest request)
         {
-            // AI 모더레이션 체크 (Gemini)
+            var userId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
+            if (userId == null)
+            {
+                return Unauthorized(new { message = "Authentication required." });
+            }
+
             var isContentSafe = await _geminiService.CheckContentSafety(request.Content);
             if (!isContentSafe)
             {
-                return BadRequest(new { message = "게시글에 부적절한 내용이 포함되어 있습니다." });
+                return BadRequest(new { message = "Content is not allowed." });
             }
 
             var message = new PublicComfortMessage
             {
-                UserId = request.UserId,
+                UserId = userId.Value,
                 Content = request.Content,
                 CreatedAt = DateTime.UtcNow,
             };
@@ -48,30 +53,20 @@ namespace MindWeatherServer.Controllers
             _context.PublicComfortMessages.Add(message);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "공개 위로가 등록되었습니다.", id = message.Id });
+            return Ok(new { message = "Public message posted.", id = message.Id });
         }
 
-        // 2. 공용 위로글 목록 조회 (GET /api/public-messages?sort=latest&userId=...)
         [HttpGet]
-        public async Task<IActionResult> GetPublicMessages(
-            [FromQuery] string sort = "latest",
-            [FromQuery] Guid? userId = null)
+        public async Task<IActionResult> GetPublicMessages([FromQuery] string sort = "latest")
         {
             IQueryable<PublicComfortMessage> query = _context.PublicComfortMessages;
 
-            if (sort == "top")
-            {
-                query = query
-                    .OrderByDescending(m => m.LikeCount)
-                    .ThenByDescending(m => m.CreatedAt);
-            }
-            else
-            {
-                query = query.OrderByDescending(m => m.CreatedAt);
-            }
+            query = sort == "top"
+                ? query.OrderByDescending(m => m.LikeCount).ThenByDescending(m => m.CreatedAt)
+                : query.OrderByDescending(m => m.CreatedAt);
 
-            // userId가 주어지면 좋아요 여부도 함께 반환
             var likedIds = new HashSet<int>();
+            var userId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
             if (userId.HasValue)
             {
                 likedIds = (await _context.PublicMessageLikes
@@ -94,7 +89,6 @@ namespace MindWeatherServer.Controllers
                 })
                 .ToListAsync();
 
-            // EF Core에서 HashSet 조회가 안 되므로 메모리에서 처리
             foreach (var msg in messages)
             {
                 msg.IsLikedByMe = likedIds.Contains(msg.Id);
@@ -103,11 +97,17 @@ namespace MindWeatherServer.Controllers
             return Ok(messages);
         }
 
-        // 3. 공감(하트) 토글 (POST /api/public-messages/{id}/like)
         [HttpPost("{id}/like")]
+        [Authorize]
         [EnableRateLimiting("write")]
-        public async Task<IActionResult> LikeMessage(int id, [FromBody] LikeRequest request)
+        public async Task<IActionResult> LikeMessage(int id)
         {
+            var userId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
+            if (userId == null)
+            {
+                return Unauthorized(new { message = "Authentication required." });
+            }
+
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -116,7 +116,7 @@ namespace MindWeatherServer.Controllers
                     return NotFound();
 
                 var existingLike = await _context.PublicMessageLikes
-                    .FirstOrDefaultAsync(l => l.MessageId == id && l.UserId == request.UserId);
+                    .FirstOrDefaultAsync(l => l.MessageId == id && l.UserId == userId.Value);
 
                 bool liked;
                 if (existingLike != null)
@@ -129,7 +129,7 @@ namespace MindWeatherServer.Controllers
                     _context.PublicMessageLikes.Add(new PublicMessageLike
                     {
                         MessageId = id,
-                        UserId = request.UserId,
+                        UserId = userId.Value,
                         CreatedAt = DateTime.UtcNow,
                     });
                     liked = true;
@@ -137,9 +137,7 @@ namespace MindWeatherServer.Controllers
 
                 await _context.SaveChangesAsync();
 
-                // race condition 방지: 실제 테이블에서 카운트 재계산
-                message.LikeCount = await _context.PublicMessageLikes
-                    .CountAsync(l => l.MessageId == id);
+                message.LikeCount = await _context.PublicMessageLikes.CountAsync(l => l.MessageId == id);
                 await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
@@ -152,9 +150,8 @@ namespace MindWeatherServer.Controllers
             }
         }
 
-        // 4. 게시글 상세 + 답글 조회 (GET /api/public-messages/{id}?userId=...)
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetMessageDetail(int id, [FromQuery] Guid? userId = null)
+        public async Task<IActionResult> GetMessageDetail(int id)
         {
             var message = await _context.PublicComfortMessages.FindAsync(id);
             if (message == null)
@@ -173,6 +170,7 @@ namespace MindWeatherServer.Controllers
                 .ToListAsync();
 
             var isLiked = false;
+            var userId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
             if (userId.HasValue)
             {
                 isLiked = await _context.PublicMessageLikes
@@ -191,26 +189,31 @@ namespace MindWeatherServer.Controllers
             });
         }
 
-        // 5. 답글 작성 (POST /api/public-messages/{id}/replies)
         [HttpPost("{id}/replies")]
+        [Authorize]
         [EnableRateLimiting("write")]
         public async Task<IActionResult> PostReply(int id, [FromBody] CreateReplyRequest request)
         {
+            var userId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
+            if (userId == null)
+            {
+                return Unauthorized(new { message = "Authentication required." });
+            }
+
             var message = await _context.PublicComfortMessages.FindAsync(id);
             if (message == null)
                 return NotFound();
 
-            // AI 모더레이션
             var isContentSafe = await _geminiService.CheckContentSafety(request.Content);
             if (!isContentSafe)
             {
-                return BadRequest(new { message = "답글에 부적절한 내용이 포함되어 있습니다." });
+                return BadRequest(new { message = "Reply content is not allowed." });
             }
 
             var reply = new PublicMessageReply
             {
                 MessageId = id,
-                UserId = request.UserId,
+                UserId = userId.Value,
                 Content = request.Content,
                 CreatedAt = DateTime.UtcNow,
             };

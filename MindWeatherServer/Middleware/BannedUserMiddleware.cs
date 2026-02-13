@@ -20,8 +20,7 @@ namespace MindWeatherServer.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var authorization = context.Request.Headers["Authorization"].FirstOrDefault();
-            var userId = JwtHelper.GetUserIdFromHeader(authorization);
+            var userId = JwtHelper.GetUserIdFromClaimsPrincipal(context.User);
 
             if (userId != null)
             {

@@ -68,9 +68,10 @@ export async function getNotificationCount(userId: string, since?: string): Prom
 
 // Emotions API
 export async function postEmotion(request: CreateEmotionRequest): Promise<{ message: string }> {
+    const headers = await authHeaders();
     const response = await fetch(`${API_BASE_URL}/emotions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify(request),
     });
 
@@ -103,9 +104,10 @@ export async function getEmotionStats(): Promise<StatsResponse> {
 
 // Comfort Messages API
 export async function sendComfortMessage(request: SendMessageRequest): Promise<{ message: string; id: number }> {
+    const headers = await authHeaders();
     const response = await fetch(`${API_BASE_URL}/comfort-messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify(request),
     });
 
@@ -139,9 +141,9 @@ export async function getSentMessages(userId: string): Promise<MessageResponse[]
     return response.json();
 }
 
-export async function thankMessage(messageId: number, userId: string): Promise<{ message: string }> {
+export async function thankMessage(messageId: number): Promise<{ message: string }> {
     const headers = await authHeaders();
-    const response = await fetch(`${API_BASE_URL}/comfort-messages/${messageId}/thank?userId=${userId}`, {
+    const response = await fetch(`${API_BASE_URL}/comfort-messages/${messageId}/thank`, {
         method: 'PUT',
         headers,
     });
@@ -234,7 +236,7 @@ export async function broadcastComfort(
 // 내 감정 기록 가져오기
 export async function getMyEmotions(userId: string, year: number, month: number): Promise<EmotionResponse[]> {
     const headers = await authHeaders();
-    const response = await fetch(`${API_BASE_URL}/emotions/my?userId=${userId}&year=${year}&month=${month}`, { headers });
+    const response = await fetch(`${API_BASE_URL}/emotions/my?year=${year}&month=${month}`, { headers });
     if (!response.ok) {
         throw new Error('Failed to fetch my emotions');
     }
@@ -250,25 +252,29 @@ export interface PublicMessage {
     createdAt: string;
 }
 
-export async function postPublicMessage(userId: string, content: string): Promise<{ id: number }> {
+export async function postPublicMessage(content: string): Promise<{ id: number }> {
+    const headers = await authHeaders();
     const response = await fetch(`${API_BASE_URL}/public-messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, content }),
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ content }),
     });
     if (!response.ok) throw new Error('Failed to post public message');
     return response.json();
 }
 
 export async function getPublicMessages(sort: 'latest' | 'top' = 'latest'): Promise<PublicMessage[]> {
-    const response = await fetch(`${API_BASE_URL}/public-messages?sort=${sort}`);
+    const headers = await authHeaders();
+    const response = await fetch(`${API_BASE_URL}/public-messages?sort=${sort}`, { headers });
     if (!response.ok) throw new Error('Failed to fetch public messages');
     return response.json();
 }
 
 export async function likePublicMessage(id: number): Promise<{ likeCount: number }> {
+    const headers = await authHeaders();
     const response = await fetch(`${API_BASE_URL}/public-messages/${id}/like`, {
         method: 'POST',
+        headers,
     });
     if (!response.ok) throw new Error('Failed to like message');
     return response.json();

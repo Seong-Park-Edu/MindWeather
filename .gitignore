@@ -18,6 +18,7 @@ google-services.json
 # Build / cache
 .expo/
 web-build/
+MindWeatherClient/mobile/config_error.txt
 
 # Accidental Windows nul files
 nul

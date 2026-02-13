@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -11,39 +12,45 @@ namespace MindWeatherServer.Controllers
 {
     [Route("api/comfort-messages")]
     [ApiController]
+    [Authorize]
     public class ComfortMessagesController : ControllerBase
     {
         private readonly AppDbContext _context;
         private readonly PushNotificationService _pushService;
         private readonly GeminiService _geminiService;
 
-        public ComfortMessagesController(AppDbContext context, PushNotificationService pushService, GeminiService geminiService)
+        public ComfortMessagesController(
+            AppDbContext context,
+            PushNotificationService pushService,
+            GeminiService geminiService)
         {
             _context = context;
             _pushService = pushService;
             _geminiService = geminiService;
         }
 
-        // 1. 위로 메시지 보내기 (POST /api/comfort-messages)
         [HttpPost]
         [EnableRateLimiting("write")]
         public async Task<IActionResult> SendMessage([FromBody] SendMessageRequest request)
         {
-            // AI 모더레이션 체크 (Gemini)
-            var isContentSafe = await _geminiService.CheckContentSafety(request.Content);
-
-            if (!isContentSafe)
+            var senderId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
+            if (senderId == null)
             {
-                return BadRequest(new { message = "메시지에 부적절한 내용이 포함되어 있습니다." });
+                return Unauthorized(new { message = "Authentication required." });
             }
 
-            // 발신자 존재 확인 및 자동 등록
-            var sender = await _context.Users.FindAsync(request.SenderId);
+            var isContentSafe = await _geminiService.CheckContentSafety(request.Content);
+            if (!isContentSafe)
+            {
+                return BadRequest(new { message = "Message content is not allowed." });
+            }
+
+            var sender = await _context.Users.FindAsync(senderId.Value);
             if (sender == null)
             {
                 sender = new User
                 {
-                    UserId = request.SenderId,
+                    UserId = senderId.Value,
                     CreatedAt = DateTime.UtcNow,
                     LastActiveAt = DateTime.UtcNow,
                 };
@@ -54,7 +61,6 @@ namespace MindWeatherServer.Controllers
                 sender.LastActiveAt = DateTime.UtcNow;
             }
 
-            // 수신자 존재 확인 및 자동 등록
             var receiver = await _context.Users.FindAsync(request.ReceiverId);
             if (receiver == null)
             {
@@ -67,10 +73,9 @@ namespace MindWeatherServer.Controllers
                 _context.Users.Add(receiver);
             }
 
-            // 메시지 저장
             var message = new ComfortMessage
             {
-                SenderId = request.SenderId,
+                SenderId = senderId.Value,
                 ReceiverId = request.ReceiverId,
                 TargetLogId = request.TargetLogId,
                 Content = request.Content,
@@ -81,28 +86,26 @@ namespace MindWeatherServer.Controllers
             _context.ComfortMessages.Add(message);
             await _context.SaveChangesAsync();
 
-            // 수신자에게 푸시 알림 전송
             if (!string.IsNullOrEmpty(receiver.PushToken))
             {
                 await _pushService.SendPushNotification(
                     receiver.PushToken,
-                    "💌 새로운 위로가 도착했어요",
-                    "누군가 당신에게 따뜻한 마음을 전했습니다.",
+                    "New comfort message",
+                    "Someone sent you a warm message.",
                     new { type = "comfort_message", messageId = message.Id }
                 );
             }
 
-            return Ok(new { message = "따뜻한 마음이 전달되었습니다.", id = message.Id });
+            return Ok(new { message = "Comfort message sent.", id = message.Id });
         }
 
-        // 2. 받은 메시지 조회 (GET /api/comfort-messages/received/{userId})
         [HttpGet("received/{userId}")]
-        public async Task<IActionResult> GetReceivedMessages(
-            Guid userId,
-            [FromHeader(Name = "Authorization")] string? authorization = null)
+        public async Task<IActionResult> GetReceivedMessages(Guid userId)
         {
-            var authError = JwtHelper.ValidateUserId(authorization, userId);
-            if (authError != null) return authError;
+            if (!ValidatePathUser(userId, out _))
+            {
+                return Forbid();
+            }
 
             var messages = await _context
                 .ComfortMessages.Where(m =>
@@ -126,14 +129,13 @@ namespace MindWeatherServer.Controllers
             return Ok(messages);
         }
 
-        // 2.5 보낸 메시지 조회 (GET /api/comfort-messages/sent/{userId})
         [HttpGet("sent/{userId}")]
-        public async Task<IActionResult> GetSentMessages(
-            Guid userId,
-            [FromHeader(Name = "Authorization")] string? authorization = null)
+        public async Task<IActionResult> GetSentMessages(Guid userId)
         {
-            var authError = JwtHelper.ValidateUserId(authorization, userId);
-            if (authError != null) return authError;
+            if (!ValidatePathUser(userId, out _))
+            {
+                return Forbid();
+            }
 
             var messages = await _context
                 .ComfortMessages.Where(m => m.SenderId == userId)
@@ -155,109 +157,95 @@ namespace MindWeatherServer.Controllers
             return Ok(messages);
         }
 
-        // 3. 감사 표시 (PUT /api/comfort-messages/{id}/thank)
         [HttpPut("{id}/thank")]
-        public async Task<IActionResult> ThankMessage(
-            long id,
-            [FromQuery] Guid userId,
-            [FromHeader(Name = "Authorization")] string? authorization = null)
+        public async Task<IActionResult> ThankMessage(long id)
         {
-            var authError = JwtHelper.ValidateUserId(authorization, userId);
-            if (authError != null) return authError;
-
-            var message = await _context.ComfortMessages.FindAsync(id);
-
-            if (message == null)
+            var userId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
+            if (userId == null)
             {
-                return NotFound(new { message = "메시지를 찾을 수 없습니다." });
+                return Unauthorized(new { message = "Authentication required." });
             }
 
-            if (message.ReceiverId != userId)
+            var message = await _context.ComfortMessages.FindAsync(id);
+            if (message == null)
+            {
+                return NotFound(new { message = "Message not found." });
+            }
+
+            if (message.ReceiverId != userId.Value)
             {
                 return Forbid();
             }
 
             if (message.IsThanked)
             {
-                return BadRequest(new { message = "이미 감사를 표시한 메시지입니다." });
+                return BadRequest(new { message = "Message already thanked." });
             }
 
             message.IsThanked = true;
             message.ThankedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            // 발신자에게 감사 알림 전송
             var sender = await _context.Users.FindAsync(message.SenderId);
             if (sender != null && !string.IsNullOrEmpty(sender.PushToken))
             {
                 await _pushService.SendPushNotification(
                     sender.PushToken,
-                    "💖 감사 인사가 도착했어요",
-                    "당신의 위로가 누군가에게 큰 힘이 되었습니다.",
+                    "Thank you received",
+                    "Your comfort message was appreciated.",
                     new { type = "thank_message", messageId = message.Id }
                 );
             }
 
-            return Ok(new { message = "감사가 전달되었습니다." });
+            return Ok(new { message = "Thank you sent." });
         }
 
-        // 4. 위로 통계 (GET /api/comfort-messages/stats)
         [HttpGet("stats")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetStats()
         {
             var today = DateTime.UtcNow.Date;
 
-            // Count messages sent Today
             var totalComforts = await _context
                 .ComfortMessages.Where(m => m.Status == MessageStatus.Sent && m.SentAt >= today)
                 .CountAsync();
 
-            // Count thanks received Today
             var totalThanks = await _context
-                .ComfortMessages.Where(m =>
-                    m.IsThanked && m.ThankedAt != null && m.ThankedAt >= today
-                )
+                .ComfortMessages.Where(m => m.IsThanked && m.ThankedAt != null && m.ThankedAt >= today)
                 .CountAsync();
 
             return Ok(new { totalComforts, totalThanks });
         }
 
-        // 5. 알림 카운트 (GET /api/comfort-messages/notifications/{userId}?since=...)
-        // since 파라미터 이후의 새로운 메시지 + 새로운 감사 개수 반환
         [HttpGet("notifications/{userId}")]
-        public async Task<IActionResult> GetNotificationCount(
-            Guid userId,
-            [FromQuery] DateTime? since,
-            [FromHeader(Name = "Authorization")] string? authorization = null)
+        public async Task<IActionResult> GetNotificationCount(Guid userId, [FromQuery] DateTime? since)
         {
-            var authError = JwtHelper.ValidateUserId(authorization, userId);
-            if (authError != null) return authError;
+            if (!ValidatePathUser(userId, out _))
+            {
+                return Forbid();
+            }
 
             var sinceDate = since ?? DateTime.MinValue;
 
-            // 1. 새로 받은 위로 메시지 개수
             var newMessages = await _context
                 .ComfortMessages.Where(m =>
                     m.ReceiverId == userId && m.SentAt > sinceDate && m.Status == MessageStatus.Sent
                 )
                 .CountAsync();
 
-            // 2. 보낸 메시지 중 새로 감사받은 개수
             var newThanks = await _context
                 .ComfortMessages.Where(m =>
                     m.SenderId == userId && m.IsThanked && m.ThankedAt > sinceDate
                 )
                 .CountAsync();
 
-            return Ok(
-                new
-                {
-                    newMessages,
-                    newThanks,
-                    total = newMessages + newThanks,
-                }
-            );
+            return Ok(new { newMessages, newThanks, total = newMessages + newThanks });
         }
 
+        private bool ValidatePathUser(Guid pathUserId, out Guid tokenUserId)
+        {
+            tokenUserId = JwtHelper.GetUserIdFromClaimsPrincipal(User) ?? Guid.Empty;
+            return tokenUserId != Guid.Empty && tokenUserId == pathUserId;
+        }
     }
 }

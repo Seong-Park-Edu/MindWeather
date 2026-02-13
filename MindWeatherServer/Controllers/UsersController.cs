@@ -1,15 +1,14 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
 using MindWeatherServer.Helpers;
-using MindWeatherServer.Models;
 
 namespace MindWeatherServer.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -20,45 +19,36 @@ namespace MindWeatherServer.Controllers
         }
 
         [HttpGet("me")]
-        public async Task<IActionResult> GetMe(
-            [FromHeader(Name = "Authorization")] string? authorization
-        )
+        public async Task<IActionResult> GetMe()
         {
-            if (string.IsNullOrEmpty(authorization) || !authorization.StartsWith("Bearer "))
+            var userId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
+            if (userId == null)
             {
                 return Unauthorized();
             }
 
-            var userIdString = GetUserIdFromToken(authorization);
-            if (userIdString == null || !Guid.TryParse(userIdString, out var userId))
-            {
-                return Unauthorized();
-            }
-
-            var user = await _context.Users.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId.Value);
             if (user == null)
             {
                 return NotFound("User not found in database.");
             }
 
-            return Ok(
-                new
-                {
-                    user.UserId,
-                    user.IsAdmin,
-                    user.IsBanned,
-                    user.LastActiveAt,
-                }
-            );
+            return Ok(new
+            {
+                user.UserId,
+                user.IsAdmin,
+                user.IsBanned,
+                user.LastActiveAt,
+            });
         }
 
         [HttpGet("{userId}/insights/weekly")]
-        public async Task<IActionResult> GetWeeklyInsights(
-            Guid userId,
-            [FromHeader(Name = "Authorization")] string? authorization)
+        public async Task<IActionResult> GetWeeklyInsights(Guid userId)
         {
-            var authError = JwtHelper.ValidateUserId(authorization, userId);
-            if (authError != null) return authError;
+            if (!ValidatePathUser(userId))
+            {
+                return Forbid();
+            }
 
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -66,7 +56,6 @@ namespace MindWeatherServer.Controllers
                 return NotFound("User not found");
             }
 
-            // Get emotions from the last 7 days
             var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
             var emotionLogs = await _context.EmotionLogs
                 .Where(e => e.UserId == userId && e.CreatedAt >= sevenDaysAgo)
@@ -88,27 +77,20 @@ namespace MindWeatherServer.Controllers
                 });
             }
 
-            // Calculate emotion breakdown
             var emotionBreakdown = emotionLogs
                 .GroupBy(e => e.Emotion)
                 .ToDictionary(g => (int)g.Key, g => g.Count());
 
-            // Find dominant emotion
             var dominantEmotion = emotionBreakdown.OrderByDescending(kvp => kvp.Value).First().Key;
-
-            // Calculate average intensity
             var averageIntensity = emotionLogs.Average(e => e.Intensity);
 
-            // Day of week pattern
             var dayOfWeekPattern = emotionLogs
                 .GroupBy(e => e.CreatedAt.DayOfWeek.ToString())
                 .ToDictionary(g => g.Key, g => g.Count());
 
-            // Most productive day (day with most logs)
             var mostProductiveDay = dayOfWeekPattern.OrderByDescending(kvp => kvp.Value).First().Key;
 
-            // Positive vs negative emotions (simplified: Joy, Calm, Excitement are positive)
-            var positiveEmotions = new[] { 0, 5, 6 }; // Joy, Calm, Excitement
+            var positiveEmotions = new[] { 0, 5, 6 };
             var positiveCount = emotionLogs.Count(e => positiveEmotions.Contains((int)e.Emotion));
             var positivePercentage = (double)positiveCount / emotionLogs.Count * 100;
 
@@ -126,12 +108,12 @@ namespace MindWeatherServer.Controllers
         }
 
         [HttpGet("{userId}/streak")]
-        public async Task<IActionResult> GetUserStreak(
-            Guid userId,
-            [FromHeader(Name = "Authorization")] string? authorization)
+        public async Task<IActionResult> GetUserStreak(Guid userId)
         {
-            var authError = JwtHelper.ValidateUserId(authorization, userId);
-            if (authError != null) return authError;
+            if (!ValidatePathUser(userId))
+            {
+                return Forbid();
+            }
 
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -139,7 +121,6 @@ namespace MindWeatherServer.Controllers
                 return NotFound("User not found");
             }
 
-            // KST 변환을 위해 raw timestamp를 가져온 후 메모리에서 날짜 변환
             var kstTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Korea Standard Time");
             var rawTimestamps = await _context.EmotionLogs
                 .Where(e => e.UserId == userId)
@@ -147,7 +128,6 @@ namespace MindWeatherServer.Controllers
                 .Select(e => e.CreatedAt)
                 .ToListAsync();
 
-            // UTC → KST 변환 후 날짜 추출
             var emotionLogs = rawTimestamps
                 .Select(t => TimeZoneInfo.ConvertTimeFromUtc(t, kstTimeZone).Date)
                 .Distinct()
@@ -155,21 +135,14 @@ namespace MindWeatherServer.Controllers
 
             if (emotionLogs.Count == 0)
             {
-                return Ok(new
-                {
-                    currentStreak = 0,
-                    longestStreak = 0,
-                    totalDays = 0
-                });
+                return Ok(new { currentStreak = 0, longestStreak = 0, totalDays = 0 });
             }
 
-            // Calculate current streak (KST 기준)
             int currentStreak = 0;
             var nowKst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, kstTimeZone);
             var today = nowKst.Date;
             var yesterday = today.AddDays(-1);
 
-            // Check if there's an entry today or yesterday (to maintain streak)
             if (emotionLogs[0] == today || emotionLogs[0] == yesterday)
             {
                 currentStreak = 1;
@@ -189,7 +162,6 @@ namespace MindWeatherServer.Controllers
                 }
             }
 
-            // Calculate longest streak
             int longestStreak = 1;
             int tempStreak = 1;
 
@@ -207,22 +179,16 @@ namespace MindWeatherServer.Controllers
                 }
             }
 
-            return Ok(new
-            {
-                currentStreak,
-                longestStreak,
-                totalDays = emotionLogs.Count
-            });
+            return Ok(new { currentStreak, longestStreak, totalDays = emotionLogs.Count });
         }
 
         [HttpPost("{userId}/push-token")]
-        public async Task<IActionResult> UpdatePushToken(
-            Guid userId,
-            [FromBody] PushTokenRequest request,
-            [FromHeader(Name = "Authorization")] string? authorization)
+        public async Task<IActionResult> UpdatePushToken(Guid userId, [FromBody] PushTokenRequest request)
         {
-            var authError = JwtHelper.ValidateUserId(authorization, userId);
-            if (authError != null) return authError;
+            if (!ValidatePathUser(userId))
+            {
+                return Forbid();
+            }
 
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -242,19 +208,10 @@ namespace MindWeatherServer.Controllers
             public string Token { get; set; } = string.Empty;
         }
 
-        private string? GetUserIdFromToken(string authorization)
+        private bool ValidatePathUser(Guid userId)
         {
-            try
-            {
-                var token = authorization.Substring("Bearer ".Length).Trim();
-                var handler = new JwtSecurityTokenHandler();
-                var tokenS = handler.ReadJwtToken(token) as JwtSecurityToken;
-                return tokenS.Claims.First(claim => claim.Type == "sub").Value;
-            }
-            catch
-            {
-                return null;
-            }
+            var tokenUserId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
+            return tokenUserId.HasValue && tokenUserId.Value == userId;
         }
     }
 }

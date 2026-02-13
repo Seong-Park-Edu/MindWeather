@@ -1,6 +1,8 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using MindWeatherServer.Data;
 using MindWeatherServer.Hubs;
 using MindWeatherServer.Middleware;
@@ -8,54 +10,120 @@ using MindWeatherServer.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. DB 연결 설정
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var supabaseUrl =
+    builder.Configuration["Supabase:Url"] ?? Environment.GetEnvironmentVariable("SUPABASE_URL");
+var supabaseIssuer = !string.IsNullOrWhiteSpace(supabaseUrl)
+    ? $"{supabaseUrl.TrimEnd('/')}/auth/v1"
+    : null;
+
+var connectionString =
+    Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (
+    !builder.Environment.IsDevelopment()
+    && (
+        string.IsNullOrWhiteSpace(connectionString)
+        || connectionString.Contains("YOUR_CONNECTION_STRING_HERE", StringComparison.OrdinalIgnoreCase)
+    )
+)
+{
+    throw new InvalidOperationException("Production requires DATABASE_URL or ConnectionStrings:DefaultConnection.");
+}
+
+if (
+    !builder.Environment.IsDevelopment()
+    && (
+        string.IsNullOrWhiteSpace(supabaseUrl)
+        || supabaseUrl.Contains("YOUR_SUPABASE_URL_HERE", StringComparison.OrdinalIgnoreCase)
+    )
+)
+{
+    throw new InvalidOperationException("Production requires Supabase:Url or SUPABASE_URL.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
-// 2. CORS 설정 (React 프론트엔드용 + SignalR)
 builder.Services.AddCors(options =>
 {
+    var developmentOrigins = new[]
+    {
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://172.30.1.56:5173",
+        "capacitor://localhost",
+        "http://localhost",
+    };
+    var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+    var envOriginsRaw = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
+    var envOrigins = string.IsNullOrWhiteSpace(envOriginsRaw)
+        ? Array.Empty<string>()
+        : envOriginsRaw
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    var origins = builder.Environment.IsDevelopment()
+        ? developmentOrigins
+        : (envOrigins.Length > 0 ? envOrigins : (configuredOrigins ?? Array.Empty<string>()));
+
+    if (!builder.Environment.IsDevelopment() && origins.Length == 0)
+    {
+        throw new InvalidOperationException("Production requires at least one Cors:AllowedOrigins entry.");
+    }
+
     options.AddPolicy(
         "AllowReactApp",
         policy =>
         {
             policy
-                .WithOrigins(
-                    "http://localhost:5173",
-                    "http://localhost:3000",
-                    "http://172.30.1.56:5173",
-                    "capacitor://localhost",
-                    "http://localhost",
-                    "https://mind-weather-theta.vercel.app" // Vercel Cloud
-                )
+                .WithOrigins(origins)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
-                .AllowCredentials(); // SignalR 필수 설정
+                .AllowCredentials();
         }
     );
 });
 
-// 3. 컨트롤러 등록
 builder.Services.AddControllers();
-builder.Services.AddSignalR(); // SignalR 등록
+builder.Services.AddSignalR();
 
-// 4. Push Notification 서비스 등록
+builder
+    .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        if (!string.IsNullOrWhiteSpace(supabaseIssuer))
+        {
+            options.Authority = supabaseIssuer;
+        }
+
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = !string.IsNullOrWhiteSpace(supabaseIssuer),
+            ValidIssuer = supabaseIssuer,
+            ValidateAudience = true,
+            ValidAudience =
+                builder.Configuration["Supabase:Audience"]
+                ?? Environment.GetEnvironmentVariable("SUPABASE_AUDIENCE")
+                ?? "authenticated",
+            ValidateLifetime = true,
+            NameClaimType = "sub",
+            RoleClaimType = "role",
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireClaim("role", "admin"));
+});
+
 builder.Services.AddHttpClient<PushNotificationService>();
-
-// 4.5 Gemini AI 서비스 등록
 builder.Services.AddHttpClient<GeminiService>();
-
-// 4.6 Daily Letter Scheduler 등록 (백그라운드 서비스)
 builder.Services.AddHostedService<DailyLetterScheduler>();
 
-// 5. Swagger 설정
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// 6. Rate Limiting 설정
 builder.Services.AddRateLimiter(options =>
 {
-    // 전역 기본: IP당 분당 100회
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -66,7 +134,6 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
             }));
 
-    // 쓰기 작업용: IP당 분당 15회 (감정 기록, 위로 메시지, 게시글 등)
     options.AddFixedWindowLimiter("write", limiterOptions =>
     {
         limiterOptions.PermitLimit = 15;
@@ -79,32 +146,25 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// 개발 환경에서만 상세 에러 페이지 노출
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
 
-// Swagger는 항상 활성화 (API 문서용)
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
-
 app.UseCors("AllowReactApp");
 
-// 차단된 사용자 요청 거부
+app.UseAuthentication();
 app.UseMiddleware<BannedUserMiddleware>();
-
 app.UseRateLimiter();
-
 app.UseAuthorization();
 
-// 5. 컨트롤러/Hub 경로 매핑
 app.MapControllers();
-app.MapHub<EmotionHub>("/emotionHub"); // SignalR Hub 엔드포인트
+app.MapHub<EmotionHub>("/emotionHub");
 
-// [추가] 앱 시작 시 자동으로 DB 마이그레이션 및 긴급 복구 실행
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -112,33 +172,28 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<AppDbContext>();
 
-        // 자동 마이그레이션 시도
-        Console.WriteLine("⏳ Attempting Database Migration...");
+        Console.WriteLine("Attempting Database Migration...");
         try
         {
             context.Database.Migrate();
-            Console.WriteLine("✅ Database migration completed successfully.");
+            Console.WriteLine("Database migration completed successfully.");
         }
         catch (Exception migrateEx)
         {
-            Console.WriteLine($"⚠️ EF Migration failed ({migrateEx.Message}), falling back to raw SQL...");
+            Console.WriteLine($"EF Migration failed ({migrateEx.Message}), falling back to raw SQL...");
         }
 
-        // 스키마 강제 확인 및 생성 (마이그레이션 실패 대비)
         var ensureSchemaSql = @"
             DO $$
             BEGIN
-                -- IsAdmin 컬럼
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Users' AND column_name = 'IsAdmin') THEN
                     ALTER TABLE ""Users"" ADD COLUMN ""IsAdmin"" boolean NOT NULL DEFAULT FALSE;
                 END IF;
 
-                -- ReplyCount 컬럼
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'PublicComfortMessages' AND column_name = 'ReplyCount') THEN
                     ALTER TABLE ""PublicComfortMessages"" ADD COLUMN ""ReplyCount"" integer NOT NULL DEFAULT 0;
                 END IF;
 
-                -- PublicMessageLikes 테이블
                 IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PublicMessageLikes') THEN
                     CREATE TABLE ""PublicMessageLikes"" (
                         ""Id"" bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -149,7 +204,6 @@ using (var scope = app.Services.CreateScope())
                     CREATE UNIQUE INDEX ""IX_PublicMessageLikes_MessageId_UserId"" ON ""PublicMessageLikes"" (""MessageId"", ""UserId"");
                 END IF;
 
-                -- PublicMessageReplies 테이블
                 IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PublicMessageReplies') THEN
                     CREATE TABLE ""PublicMessageReplies"" (
                         ""Id"" bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -163,11 +217,11 @@ using (var scope = app.Services.CreateScope())
             END $$;";
 
         context.Database.ExecuteSqlRaw(ensureSchemaSql);
-        Console.WriteLine("✅ Schema verification completed.");
+        Console.WriteLine("Schema verification completed.");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"❌ Database Setup Failed: {ex.Message}");
+        Console.WriteLine($"Database Setup Failed: {ex.Message}");
     }
 }
 

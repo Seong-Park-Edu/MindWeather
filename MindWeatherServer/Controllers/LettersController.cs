@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
@@ -7,6 +8,7 @@ namespace MindWeatherServer.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class LettersController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -16,17 +18,13 @@ namespace MindWeatherServer.Controllers
             _context = context;
         }
 
-        /// <summary>
-        /// 사용자의 편지 목록 조회 (최신순)
-        /// </summary>
         [HttpGet("{userId}")]
-        public async Task<IActionResult> GetLetters(
-            Guid userId,
-            [FromQuery] int? limit = 30,
-            [FromHeader(Name = "Authorization")] string? authorization = null)
+        public async Task<IActionResult> GetLetters(Guid userId, [FromQuery] int? limit = 30)
         {
-            var authError = JwtHelper.ValidateUserId(authorization, userId);
-            if (authError != null) return authError;
+            if (!ValidatePathUser(userId))
+            {
+                return Forbid();
+            }
 
             var letters = await _context.DailyLetters
                 .Where(l => l.UserId == userId)
@@ -47,24 +45,19 @@ namespace MindWeatherServer.Controllers
             return Ok(letters);
         }
 
-        /// <summary>
-        /// 특정 편지 조회
-        /// </summary>
         [HttpGet("detail/{letterId}")]
-        public async Task<IActionResult> GetLetter(
-            long letterId,
-            [FromHeader(Name = "Authorization")] string? authorization = null)
+        public async Task<IActionResult> GetLetter(long letterId)
         {
             var letter = await _context.DailyLetters.FindAsync(letterId);
-
             if (letter == null)
             {
-                return NotFound(new { message = "편지를 찾을 수 없습니다." });
+                return NotFound(new { message = "Letter not found." });
             }
 
-            // 편지 소유자만 조회 가능
-            var authError = JwtHelper.ValidateUserId(authorization, letter.UserId);
-            if (authError != null) return authError;
+            if (!ValidatePathUser(letter.UserId))
+            {
+                return Forbid();
+            }
 
             return Ok(new
             {
@@ -79,23 +72,18 @@ namespace MindWeatherServer.Controllers
             });
         }
 
-        /// <summary>
-        /// 편지 읽음 처리
-        /// </summary>
         [HttpPut("{letterId}/read")]
-        public async Task<IActionResult> MarkAsRead(
-            long letterId,
-            [FromQuery] Guid userId,
-            [FromHeader(Name = "Authorization")] string? authorization = null)
+        public async Task<IActionResult> MarkAsRead(long letterId, [FromQuery] Guid userId)
         {
-            var authError = JwtHelper.ValidateUserId(authorization, userId);
-            if (authError != null) return authError;
+            if (!ValidatePathUser(userId))
+            {
+                return Forbid();
+            }
 
             var letter = await _context.DailyLetters.FindAsync(letterId);
-
             if (letter == null)
             {
-                return NotFound(new { message = "편지를 찾을 수 없습니다." });
+                return NotFound(new { message = "Letter not found." });
             }
 
             if (letter.UserId != userId)
@@ -110,25 +98,28 @@ namespace MindWeatherServer.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            return Ok(new { message = "편지를 읽었습니다." });
+            return Ok(new { message = "Letter marked as read." });
         }
 
-        /// <summary>
-        /// 읽지 않은 편지 개수
-        /// </summary>
         [HttpGet("{userId}/unread-count")]
-        public async Task<IActionResult> GetUnreadCount(
-            Guid userId,
-            [FromHeader(Name = "Authorization")] string? authorization = null)
+        public async Task<IActionResult> GetUnreadCount(Guid userId)
         {
-            var authError = JwtHelper.ValidateUserId(authorization, userId);
-            if (authError != null) return authError;
+            if (!ValidatePathUser(userId))
+            {
+                return Forbid();
+            }
 
             var count = await _context.DailyLetters
                 .Where(l => l.UserId == userId && !l.IsRead)
                 .CountAsync();
 
             return Ok(new { unreadCount = count });
+        }
+
+        private bool ValidatePathUser(Guid userId)
+        {
+            var tokenUserId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
+            return tokenUserId.HasValue && tokenUserId.Value == userId;
         }
     }
 }

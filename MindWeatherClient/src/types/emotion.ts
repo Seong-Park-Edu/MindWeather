@@ -87,7 +87,7 @@ export const AllEmotionTypes: EmotionType[] = [
 
 // Request DTOs
 export interface CreateEmotionRequest {
-    userId: string;
+    userId?: string;
     emotion: EmotionType;
     intensity: number;
     region: string;
@@ -97,7 +97,7 @@ export interface CreateEmotionRequest {
 }
 
 export interface SendMessageRequest {
-    senderId: string;
+    senderId?: string;
     receiverId: string;
     targetLogId?: number;
     content: string;

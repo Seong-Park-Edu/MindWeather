@@ -35,7 +35,7 @@ export function ComfortBoardModal({ onClose }: ComfortBoardModalProps) {
         if (!user || !newContent.trim() || isSubmitting) return;
         setIsSubmitting(true);
         try {
-            await postPublicMessage(user.id, newContent);
+            await postPublicMessage(newContent);
             setNewContent('');
             loadMessages();
         } catch (error) {

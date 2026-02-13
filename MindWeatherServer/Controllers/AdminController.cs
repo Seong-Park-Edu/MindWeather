@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MindWeatherServer.Data;
@@ -8,11 +9,11 @@ namespace MindWeatherServer.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class AdminController : ControllerBase
     {
         private readonly AppDbContext _db;
-        
-        // Fixed System Admin ID for broadcast messages
+
         private static readonly Guid SystemAdminId = Guid.Parse("00000000-0000-0000-0000-999999999999");
 
         public AdminController(AppDbContext db)
@@ -20,27 +21,21 @@ namespace MindWeatherServer.Controllers
             _db = db;
         }
 
-        /// <summary>
-        /// Broadcast a comfort message to all users feeling a specific emotion
-        /// Created within the last 24 hours
-        /// </summary>
         [HttpPost("broadcast")]
-        public async Task<IActionResult> BroadcastComfort([FromBody] BroadcastRequest request, [FromHeader(Name = "Authorization")] string? authorization)
+        public async Task<IActionResult> BroadcastComfort([FromBody] BroadcastRequest request)
         {
             try
             {
-                // 1. 관리자 인증
-                var currentUserId = JwtHelper.GetUserIdFromHeader(authorization);
+                var currentUserId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
                 if (currentUserId == null)
-                    return Unauthorized("인증이 필요합니다.");
+                    return Unauthorized("Authentication required.");
 
                 var currentUser = await _db.Users.FindAsync(currentUserId.Value);
                 if (currentUser == null || !currentUser.IsAdmin)
-                    return StatusCode(403, "관리자 권한이 없습니다.");
+                    return StatusCode(403, "Admin privileges required.");
 
-                // 2. 타겟 유저 찾기 (Users 테이블 조인)
                 var cutoffTime = DateTime.UtcNow.AddHours(-24);
-                
+
                 var targetUserIds = await _db.EmotionLogs
                     .Where(e => e.Emotion == request.TargetEmotion && e.CreatedAt >= cutoffTime)
                     .Join(_db.Users, l => l.UserId, u => u.UserId, (l, u) => u.UserId)
@@ -48,18 +43,14 @@ namespace MindWeatherServer.Controllers
                     .ToListAsync();
 
                 if (targetUserIds.Count == 0)
-                    return Ok(new { message = "대상 유저가 없습니다.", count = 0 });
+                    return Ok(new { message = "No target users found.", count = 0 });
 
-                Console.WriteLine($"[Admin] 전송 대상: {targetUserIds.Count}명 - 개별 전송 시작");
-
-                // 3. ★ 핵심 변경: 한 명씩 따로따로 저장 (네트워크 끊김 방지) ★
                 int successCount = 0;
 
                 foreach (var receiverId in targetUserIds)
                 {
-                    try 
+                    try
                     {
-                        // 해당 유저의 최신 로그 찾기
                         var latestLogId = await _db.EmotionLogs
                             .Where(e => e.UserId == receiverId && e.CreatedAt >= cutoffTime)
                             .OrderByDescending(e => e.CreatedAt)
@@ -78,46 +69,40 @@ namespace MindWeatherServer.Controllers
                         };
 
                         _db.ComfortMessages.Add(msg);
-                        await _db.SaveChangesAsync(); // ★ 여기서 매번 저장!
+                        await _db.SaveChangesAsync();
                         successCount++;
                     }
                     catch (Exception innerEx)
                     {
-                        // 한 명이 실패해도 나머지는 계속 보냄
-                        Console.WriteLine($"[전송 실패] User: {receiverId}, Error: {innerEx.Message}");
+                        Console.WriteLine($"[Broadcast failed] User: {receiverId}, Error: {innerEx.Message}");
                     }
                 }
 
                 return Ok(new
                 {
-                    message = $"{successCount}명에게 전송 완료 (실패 {targetUserIds.Count - successCount}건)",
+                    message = $"Sent to {successCount} users (failed {targetUserIds.Count - successCount}).",
                     count = successCount
                 });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CRITICAL ERROR] {ex.Message}");
-                return StatusCode(500, new { message = "서버 에러", error = ex.Message });
+                Console.WriteLine($"[AdminController] Critical Error: {ex.Message}");
+                return StatusCode(500, new { message = "Server error", error = ex.Message });
             }
         }
 
-        /// <summary>
-        /// Get emotion statistics for admin dashboard
-        /// Shows count of users per emotion type in last 24 hours
-        /// </summary>
         [HttpGet("stats")]
-        public async Task<IActionResult> GetEmotionStats([FromHeader(Name = "Authorization")] string? authorization)
+        public async Task<IActionResult> GetEmotionStats()
         {
-            try 
+            try
             {
-                 // 1. Authenticate Admin
-                var currentUserId = JwtHelper.GetUserIdFromHeader(authorization);
+                var currentUserId = JwtHelper.GetUserIdFromClaimsPrincipal(User);
                 if (currentUserId == null)
-                    return Unauthorized("인증이 필요합니다.");
+                    return Unauthorized("Authentication required.");
 
                 var currentUser = await _db.Users.FindAsync(currentUserId.Value);
                 if (currentUser == null || !currentUser.IsAdmin)
-                    return StatusCode(403, "관리자 권한이 없습니다.");
+                    return StatusCode(403, "Admin privileges required.");
 
                 var cutoffTime = DateTime.UtcNow.AddHours(-24);
 
@@ -132,9 +117,8 @@ namespace MindWeatherServer.Controllers
                     })
                     .ToListAsync();
 
-                // Ensure all emotion types are represented
                 var allStats = Enum.GetValues<EmotionType>()
-                    .Select(emotion => stats.FirstOrDefault(s => s.Emotion == emotion) 
+                    .Select(emotion => stats.FirstOrDefault(s => s.Emotion == emotion)
                         ?? new EmotionStat { Emotion = emotion, Count = 0, TotalLogs = 0 })
                     .OrderBy(s => s.Emotion)
                     .ToList();
@@ -147,20 +131,18 @@ namespace MindWeatherServer.Controllers
                 return StatusCode(500, new { message = "Internal Server Error", error = ex.Message });
             }
         }
-
     }
 
-    // DTOs
     public class BroadcastRequest
     {
         public EmotionType TargetEmotion { get; set; }
-        public string Content { get; set; }
+        public string Content { get; set; } = string.Empty;
     }
 
     public class EmotionStat
     {
         public EmotionType Emotion { get; set; }
-        public int Count { get; set; }  // Unique users
-        public int TotalLogs { get; set; }  // Total logs
+        public int Count { get; set; }
+        public int TotalLogs { get; set; }
     }
 }
