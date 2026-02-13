@@ -150,6 +150,42 @@ builder
         };
         options.Events = new JwtBearerEvents
         {
+            OnTokenValidated = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtAuth");
+                var authorization = context.Request.Headers.Authorization.ToString();
+                var token = authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                    ? authorization["Bearer ".Length..].Trim()
+                    : string.Empty;
+                var tokenKid = "(unknown)";
+
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    try
+                    {
+                        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+                        tokenKid = string.IsNullOrWhiteSpace(jwt.Header.Kid)
+                            ? "(empty)"
+                            : jwt.Header.Kid;
+                    }
+                    catch
+                    {
+                        tokenKid = "(parse-failed)";
+                    }
+                }
+
+                logger.LogInformation(
+                    "JWT token validated. Path: {Path}, Subject: {Subject}, Issuer: {Issuer}, Audience: {Audience}, Kid: {Kid}",
+                    context.HttpContext.Request.Path,
+                    context.Principal?.FindFirst("sub")?.Value ?? "(none)",
+                    context.Principal?.FindFirst("iss")?.Value ?? "(none)",
+                    context.Principal?.FindFirst("aud")?.Value ?? "(none)",
+                    tokenKid
+                );
+                return Task.CompletedTask;
+            },
             OnAuthenticationFailed = context =>
             {
                 var logger = context.HttpContext.RequestServices
@@ -190,6 +226,19 @@ builder
                     supabaseAudience,
                     tokenIssuer,
                     tokenKid
+                );
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("JwtAuth");
+                logger.LogWarning(
+                    "JWT challenge issued. Path: {Path}, Error: {Error}, Description: {Description}",
+                    context.HttpContext.Request.Path,
+                    context.Error ?? "(none)",
+                    context.ErrorDescription ?? "(none)"
                 );
                 return Task.CompletedTask;
             }
