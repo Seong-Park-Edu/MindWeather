@@ -35,10 +35,21 @@ var supabaseAudience = NormalizeConfigValue(
     ?? builder.Configuration["Supabase:Audience"]
     ?? "authenticated"
 );
+var supabaseJwksUrl = !string.IsNullOrWhiteSpace(supabaseIssuer)
+    ? $"{supabaseIssuer.TrimEnd('/')}/.well-known/jwks.json"
+    : null;
+var supabaseJwksResolver = !string.IsNullOrWhiteSpace(supabaseJwksUrl)
+    ? new SupabaseJwksResolver(supabaseJwksUrl)
+    : null;
 
 Console.WriteLine(
     $"[AuthConfig] Supabase issuer: {supabaseIssuer ?? "(null)"}, audience: {supabaseAudience}"
 );
+if (supabaseJwksResolver is not null)
+{
+    var startupKeyCount = supabaseJwksResolver.RefreshSigningKeys(force: true, reason: "startup");
+    Console.WriteLine($"[AuthConfig] Supabase JWKS keys loaded at startup: {startupKeyCount}");
+}
 
 var connectionString =
     Environment.GetEnvironmentVariable("DATABASE_URL")
@@ -144,6 +155,9 @@ builder
                 : new[] { supabaseIssuer, $"{supabaseIssuer}/" },
             ValidateAudience = true,
             ValidAudiences = new[] { supabaseAudience, "authenticated", "anon", "service_role" },
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) =>
+                supabaseJwksResolver?.ResolveSigningKeys(kid) ?? Array.Empty<SecurityKey>(),
             ValidateLifetime = true,
             NameClaimType = "sub",
             RoleClaimType = "role",
@@ -361,3 +375,97 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+sealed class SupabaseJwksResolver
+{
+    private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromMinutes(30);
+
+    private readonly string _jwksUrl;
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private IReadOnlyList<SecurityKey> _allKeys = Array.Empty<SecurityKey>();
+    private IReadOnlyDictionary<string, SecurityKey> _keysByKid =
+        new Dictionary<string, SecurityKey>(StringComparer.Ordinal);
+    private DateTimeOffset _lastRefreshUtc = DateTimeOffset.MinValue;
+
+    public SupabaseJwksResolver(string jwksUrl)
+    {
+        _jwksUrl = jwksUrl;
+    }
+
+    public int RefreshSigningKeys(bool force, string reason)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (!force && _allKeys.Count > 0 && now - _lastRefreshUtc < RefreshInterval)
+        {
+            return _allKeys.Count;
+        }
+
+        _refreshGate.Wait();
+        try
+        {
+            now = DateTimeOffset.UtcNow;
+            if (!force && _allKeys.Count > 0 && now - _lastRefreshUtc < RefreshInterval)
+            {
+                return _allKeys.Count;
+            }
+
+            var jwksJson = HttpClient.GetStringAsync(_jwksUrl).GetAwaiter().GetResult();
+            var jwks = new JsonWebKeySet(jwksJson);
+            var signingKeys = jwks.GetSigningKeys().ToList();
+
+            if (signingKeys.Count == 0)
+            {
+                Console.WriteLine(
+                    $"[JwtKeys] Refresh returned zero signing keys. Reason: {reason}, Url: {_jwksUrl}"
+                );
+                return _allKeys.Count;
+            }
+
+            _allKeys = signingKeys;
+            _keysByKid = signingKeys
+                .Where(k => !string.IsNullOrWhiteSpace(k.KeyId))
+                .ToDictionary(k => k.KeyId!, k => k, StringComparer.Ordinal);
+            _lastRefreshUtc = now;
+
+            Console.WriteLine($"[JwtKeys] Refreshed signing keys: {signingKeys.Count}. Reason: {reason}");
+            return signingKeys.Count;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"[JwtKeys] Failed to refresh signing keys. Reason: {reason}. {ex.GetType().Name}: {ex.Message}"
+            );
+            return _allKeys.Count;
+        }
+        finally
+        {
+            _refreshGate.Release();
+        }
+    }
+
+    public IEnumerable<SecurityKey> ResolveSigningKeys(string? kid)
+    {
+        if (!string.IsNullOrWhiteSpace(kid) && _keysByKid.TryGetValue(kid, out var key))
+        {
+            return new[] { key };
+        }
+
+        RefreshSigningKeys(force: false, reason: "periodic");
+        if (!string.IsNullOrWhiteSpace(kid) && _keysByKid.TryGetValue(kid, out key))
+        {
+            return new[] { key };
+        }
+
+        if (!string.IsNullOrWhiteSpace(kid))
+        {
+            RefreshSigningKeys(force: true, reason: $"kid-miss:{kid}");
+            if (_keysByKid.TryGetValue(kid, out key))
+            {
+                return new[] { key };
+            }
+        }
+
+        return _allKeys;
+    }
+}
